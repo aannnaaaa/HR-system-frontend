@@ -1,9 +1,11 @@
-import { LogOut, Search, FileText } from "lucide-react";
+// Header.tsx
+import { LogOut, Search, FileText, Upload } from "lucide-react"; // Добавили Upload
 import { Button } from "./ui/button";
 
 interface HeaderProps {
-  activePage: "search" | "applications";
-  onNavigate: (page: "search" | "applications") => void;
+  // Добавляем "vacancies" в союзный тип
+  activePage: "search" | "applications" | "vacancies"; 
+  onNavigate: (page: "search" | "applications" | "vacancies") => void;
 }
 
 export function Header({ activePage, onNavigate }: HeaderProps) {
@@ -37,6 +39,20 @@ export function Header({ activePage, onNavigate }: HeaderProps) {
         >
           <FileText className="size-4" />
           Мои заявки
+        </Button>
+
+        {/* НОВАЯ КНОПКА ДЛЯ ВАКАНСИЙ */}
+        <Button
+          variant={activePage === "vacancies" ? "secondary" : "ghost"}
+          className={
+            activePage === "vacancies"
+              ? "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
+              : "text-muted-foreground"
+          }
+          onClick={() => onNavigate("vacancies")}
+        >
+          <Upload className="size-4" />
+          Импорт вакансий
         </Button>
       </nav>
 

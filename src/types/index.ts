@@ -1,11 +1,18 @@
 // ===== Enum'ы, как в Prisma schema =====
 
+// Реальные виды трудоустройства, встречающиеся в выгрузке вакансий:
+// - "Вид трудового договора" (Постоянный / Временный / На период мобилизации /
+//    На период отпуска по уходу за ребенком)
+// - "Вахта" (Да/Нет) — если "Да", в employmentTypes добавляется "shift"
+//
+// Старый enum (full_time/part_time/project/internship/tour) не соответствовал
+// реальным данным (не было "периода мобилизации" и т.п.) — заменён.
 export type EmploymentType =
-  | "full_time"
-  | "part_time"
-  | "project"
-  | "internship"
-  | "tour";
+  | "permanent" // Постоянный
+  | "temporary" // Временный
+  | "mobilization_period" // На период мобилизации
+  | "parental_leave_cover" // На период отпуска по уходу за ребенком
+  | "shift"; // Вахта
 
 export type ApplicationStatus =
   | "new"
@@ -15,6 +22,9 @@ export type ApplicationStatus =
   | "rejected"
   | "ignored";
 
+// Регион строго определяется по коду местности (86/89/72).
+// Остальные коды (например 23 — Краснодарский край) пока не поддерживаются
+// и отбрасываются на этапе импорта.
 export type Region = "hmao" | "ynao" | "tobl";
 
 // ===== Модели =====
@@ -26,7 +36,7 @@ export interface Vacancy {
   description: string;
   employmentTypes: EmploymentType[];
   city: string;
-  region: string;
+  region: Region;
   createdAt: string; // даты с бэка приходят строкой (ISO), не Date
   updatedAt: string;
 }
@@ -75,11 +85,11 @@ export interface SearchFilters {
 // ===== Словари для отображения enum'ов на русском =====
 
 export const employmentTypeLabels: Record<EmploymentType, string> = {
-  full_time: "Полная",
-  part_time: "Частичная",
-  project: "Проектная",
-  internship: "Стажировка",
-  tour: "Вахта",
+  permanent: "Постоянный",
+  temporary: "Временный",
+  mobilization_period: "На период мобилизации",
+  parental_leave_cover: "На период отпуска по уходу за ребенком",
+  shift: "Вахта",
 };
 
 export const applicationStatusLabels: Record<ApplicationStatus, string> = {
