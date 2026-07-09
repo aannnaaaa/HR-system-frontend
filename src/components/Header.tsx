@@ -1,4 +1,3 @@
-// Header.tsx
 import { LogOut, Search, FileText, Upload } from "lucide-react"; // Добавили Upload
 import { Button } from "./ui/button";
 
