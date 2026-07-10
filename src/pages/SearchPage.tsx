@@ -4,10 +4,11 @@ import { VacancyCard } from "../components/VacancyCard";
 import { ResumeCard } from "../components/ResumeCard";
 import { CandidateModal } from "../components/CandidateModal";
 import { Card } from "../components/ui/card";
-import { mockVacancies, mockCandidates } from "../data/mockData";
+import { mockCandidates } from "../data/mockData";
+import { searchVacancies } from "../lib/api";
 import type { SearchFilters, Candidate, Vacancy, Application } from "../types";
 
-type SearchState = "idle" | "found" | "notfound";
+type SearchState = "idle" | "loading" | "found" | "notfound" | "error";
 
 interface SearchPageProps {
   applications: Application[];
@@ -16,29 +17,32 @@ interface SearchPageProps {
 
 export function SearchPage({ applications, onAddApplication }: SearchPageProps) {
   const [searchState, setSearchState] = useState<SearchState>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
 
-  function handleSearch(filters: SearchFilters) {
+  async function handleSearch(filters: SearchFilters) {
     if (!filters.profession.trim()) return;
 
-    const matchedVacancies = mockVacancies.filter((v) =>
-      v.label.toLowerCase().includes(filters.profession.toLowerCase())
-    );
-    const matchedCandidates = mockCandidates.filter((c) =>
-      c.educationProfile?.toLowerCase().includes(filters.profession.toLowerCase()) ||
-      filters.profession.toLowerCase().includes("геолог")
-    );
+    setSearchState("loading");
 
-    if (matchedVacancies.length === 0 && matchedCandidates.length === 0) {
-      setSearchState("notfound");
-    } else {
-      setSearchState("found");
+    try {
+      const matchedVacancies = await searchVacancies(filters);
+      const matchedCandidates = mockCandidates.filter((c) =>
+        c.educationProfile?.toLowerCase().includes(filters.profession.toLowerCase()) ||
+        filters.profession.toLowerCase().includes("геолог")
+      );
+
+      setVacancies(matchedVacancies);
+      setCandidates(matchedCandidates);
+      setSearchState(
+        matchedVacancies.length === 0 && matchedCandidates.length === 0 ? "notfound" : "found"
+      );
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Не получилось выполнить поиск");
+      setSearchState("error");
     }
-
-    setVacancies(matchedVacancies);
-    setCandidates(matchedCandidates);
   }
 
   function handleSelectCandidate(candidate: Candidate) {
@@ -60,6 +64,17 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
   return (
     <div>
       <SearchForm onSearch={handleSearch} />
+
+      {searchState === "loading" && (
+        <p className="mx-auto max-w-3xl px-4 py-6 text-sm text-muted-foreground">Ищу...</p>
+      )}
+
+      {searchState === "error" && (
+        <Card className="mx-auto mb-4 max-w-3xl border-dashed py-10 text-center">
+          <div className="font-bold text-red-600">Ошибка поиска</div>
+          <div className="text-sm text-muted-foreground">{errorMessage}</div>
+        </Card>
+      )}
 
       {searchState === "notfound" && (
         <Card className="mx-auto mb-4 max-w-3xl items-center gap-1 border-dashed py-10 text-center">

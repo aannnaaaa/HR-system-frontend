@@ -81,7 +81,6 @@ function findHeaderRowIndex(rows: unknown[][]): number {
   );
 }
 
-/** Парсит уже прочитанный лист (массив массивов, как из XLSX.utils.sheet_to_json({header:1})). */
 export function parseVacancyRows(rows: unknown[][]): ParseResult {
   const headerIndex = findHeaderRowIndex(rows);
   const header = rows[headerIndex].map((cell) => String(cell ?? "").trim());
@@ -133,7 +132,7 @@ export function parseVacancyRows(rows: unknown[][]): ParseResult {
     }
 
     vacancies.push({
-      label: professionRaw,
+      label: professionRaw.charAt(0).toUpperCase() + professionRaw.slice(1),
       region: locality.region,
       city: locality.city,
       employmentTypes,
