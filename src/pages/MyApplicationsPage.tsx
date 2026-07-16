@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { MessageSquarePlus, MapPin, Clock, Globe, Mail, Phone } from "lucide-react";
+import { MessageSquarePlus, MapPin, Clock, Globe, GraduationCap, Eye } from "lucide-react";
 
 interface MyApplicationsPageProps {
   applications: Application[];
@@ -36,6 +36,9 @@ export function MyApplicationsPage({
 }: MyApplicationsPageProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftComment, setDraftComment] = useState("");
+  // TODO: довязать модалку кандидата — жду CandidateModal.tsx, чтобы не
+  // гадать про его пропсы (onSelect может задублировать заявку).
+  // const [selectedApp, setSelectedApp] = useState<Application | null>(null);
 
   function handleStartEdit(app: Application) {
     setEditingId(app.id);
@@ -69,14 +72,17 @@ export function MyApplicationsPage({
           <Card key={app.id} className="flex-row items-center justify-between gap-4 p-5">
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center gap-2">
-                <span className="font-bold">{app.candidate.name}</span>
+                {/* Имени у кандидата больше нет — используем профиль образования как заголовок */}
+                <span className="font-bold">
+                  {app.candidate.educationProfile ?? "Кандидат"}
+                </span>
                 <Badge className={`border-transparent font-normal ${statusStyles[app.status]}`}>
                   {applicationStatusLabels[app.status]}
                 </Badge>
               </div>
 
               <div className="text-[13px] text-muted-foreground">
-                {app.candidate.educationProfile} → {app.vacancyLabel}
+                Кандидат #{app.candidate.id.slice(0, 8)} → {app.vacancyLabel}
               </div>
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -92,14 +98,12 @@ export function MyApplicationsPage({
                   <Globe className="size-3.5" />
                   {app.candidate.platform}
                 </span>
-                <span className="inline-flex items-center gap-1">
-                  <Mail className="size-3.5" />
-                  {app.candidate.email}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Phone className="size-3.5" />
-                  {app.candidate.phone}
-                </span>
+                {app.candidate.educationLevel && (
+                  <span className="inline-flex items-center gap-1">
+                    <GraduationCap className="size-3.5" />
+                    {app.candidate.educationLevel}
+                  </span>
+                )}
               </div>
 
               {editingId === app.id ? (
@@ -138,21 +142,31 @@ export function MyApplicationsPage({
               )}
             </div>
 
-            <Select
-              value={app.status}
-              onValueChange={(value) => onUpdateStatus(app.id, value as ApplicationStatus)}
-            >
-              <SelectTrigger className="w-[150px] shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(applicationStatusLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              {/* TODO: подключить открытие CandidateModal, как только пришлёте
+                  исходник компонента — сейчас неясно, что делает его onSelect
+                  в контексте уже поданной заявки */}
+              <Button size="sm" variant="outline" className="gap-1.5" disabled>
+                <Eye className="size-3.5" />
+                Открыть карточку
+              </Button>
+
+              <Select
+                value={app.status}
+                onValueChange={(value) => onUpdateStatus(app.id, value as ApplicationStatus)}
+              >
+                <SelectTrigger className="w-[150px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(applicationStatusLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </Card>
         ))}
       </div>

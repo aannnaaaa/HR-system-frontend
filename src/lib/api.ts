@@ -1,5 +1,5 @@
 import axios from "axios"
-import type { SearchFilters, Vacancy } from "../types";
+import type { SearchFilters, Vacancy, Candidate } from "../types";
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -37,4 +37,25 @@ export async function searchVacancies(filters: SearchFilters): Promise<Vacancy[]
 export async function importVacancies(vacancies: unknown[]) {
   const { data } = await apiClient.post("/api/vacancies/import", { vacancies });
   return data;
+}
+
+/**
+ * Поиск кандидатов через hh.ru (реальный поиск, не мок).
+ *
+ * ВАЖНО: путь "/api/candidates/search" — плейсхолдер. Подставьте реальный
+ * путь, когда бэкенд-разработчик сделает роут, который дергает
+ * SearchHHResumes() + mapHHResumeToCandidate() из hh-client.ts.
+ */
+export async function searchCandidates(filters: SearchFilters): Promise<Candidate[]> {
+    const params = {
+        profession: filters.profession || undefined,
+        region: filters.region || undefined,
+        experienceFrom: filters.experienceFrom || undefined,
+        educationLevel: filters.educationLevel || undefined,
+        educationProfile: filters.educationProfile || undefined,
+        employmentType: filters.employmentType || undefined,
+    }
+
+    const { data } = await apiClient.get<Candidate[]>("/api/candidates/search", { params });
+    return data;
 }

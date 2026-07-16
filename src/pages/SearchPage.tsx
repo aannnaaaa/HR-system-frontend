@@ -4,9 +4,14 @@ import { VacancyCard } from "../components/VacancyCard";
 import { ResumeCard } from "../components/ResumeCard";
 import { CandidateModal } from "../components/CandidateModal";
 import { Card } from "../components/ui/card";
-import { mockCandidates } from "../data/mockData";
-import { searchVacancies } from "../lib/api";
+import { searchVacancies, searchCandidates } from "../lib/api";
+import { filterMockCandidates } from "../data/mockData";
 import type { SearchFilters, Candidate, Vacancy, Application } from "../types";
+
+// Пока бэкенд не реализовал /api/candidates/search (сейчас отдаёт 404),
+// используем мок-данные, чтобы проверять вёрстку и логику поиска.
+// Как только эндпоинт заработает — этот флаг и фолбэк можно убрать.
+const USE_MOCK_CANDIDATES_FALLBACK = true;
 
 type SearchState = "idle" | "loading" | "found" | "notfound" | "error";
 
@@ -27,22 +32,46 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
 
     setSearchState("loading");
 
-    try {
-      const matchedVacancies = await searchVacancies(filters);
-      const matchedCandidates = mockCandidates.filter((c) =>
-        c.educationProfile?.toLowerCase().includes(filters.profession.toLowerCase()) ||
-        filters.profession.toLowerCase().includes("геолог")
-      );
+    // Promise.allSettled вместо Promise.all: один упавший запрос (например,
+    // /api/candidates/search ещё не реализован на бэке и отдаёт 404) не должен
+    // прятать успешный результат другого (vacancies).
+    const [vacanciesResult, candidatesResult] = await Promise.allSettled([
+      searchVacancies(filters),
+      searchCandidates(filters),
+    ]);
 
-      setVacancies(matchedVacancies);
-      setCandidates(matchedCandidates);
-      setSearchState(
-        matchedVacancies.length === 0 && matchedCandidates.length === 0 ? "notfound" : "found"
-      );
-    } catch (err) {
+    const matchedVacancies = vacanciesResult.status === "fulfilled" ? vacanciesResult.value : [];
+
+    let matchedCandidates: Candidate[] =
+      candidatesResult.status === "fulfilled" ? candidatesResult.value : [];
+
+    if (candidatesResult.status === "rejected") {
+      console.error("Поиск кандидатов не удался:", candidatesResult.reason);
+      if (USE_MOCK_CANDIDATES_FALLBACK) {
+        matchedCandidates = filterMockCandidates(filters);
+      }
+    }
+    if (vacanciesResult.status === "rejected") {
+      console.error("Поиск вакансий не удался:", vacanciesResult.reason);
+    }
+
+    // Общая ошибка показывается, только если вакансии упали и по кандидатам
+    // нет даже мок-фолбэка — если хоть что-то есть, показываем то, что есть.
+    const candidatesTrulyFailed =
+      candidatesResult.status === "rejected" && !USE_MOCK_CANDIDATES_FALLBACK;
+
+    if (vacanciesResult.status === "rejected" && candidatesTrulyFailed) {
+      const err = vacanciesResult.reason;
       setErrorMessage(err instanceof Error ? err.message : "Не получилось выполнить поиск");
       setSearchState("error");
+      return;
     }
+
+    setVacancies(matchedVacancies);
+    setCandidates(matchedCandidates);
+    setSearchState(
+      matchedVacancies.length === 0 && matchedCandidates.length === 0 ? "notfound" : "found"
+    );
   }
 
   function handleSelectCandidate(candidate: Candidate) {
@@ -58,7 +87,7 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
     };
     onAddApplication(newApplication);
     setSelectedCandidate(null);
-    alert(`Кандидат ${candidate.name} добавлен в заявки!`);
+    alert(`Кандидат добавлен в заявки!`);
   }
 
   return (

@@ -1,18 +1,11 @@
 // ===== Enum'ы, как в Prisma schema =====
 
-// Реальные виды трудоустройства, встречающиеся в выгрузке вакансий:
-// - "Вид трудового договора" (Постоянный / Временный / На период мобилизации /
-//    На период отпуска по уходу за ребенком)
-// - "Вахта" (Да/Нет) — если "Да", в employmentTypes добавляется "shift"
-//
-// Старый enum (full_time/part_time/project/internship/tour) не соответствовал
-// реальным данным (не было "периода мобилизации" и т.п.) — заменён.
 export type EmploymentType =
-  | "permanent" // Постоянный
-  | "temporary" // Временный
-  | "mobilization_period" // На период мобилизации
-  | "parental_leave_cover" // На период отпуска по уходу за ребенком
-  | "shift"; // Вахта
+  | "permanent"
+  | "temporary"
+  | "mobilization_period"
+  | "parental_leave_cover"
+  | "shift";
 
 export type ApplicationStatus =
   | "new"
@@ -22,9 +15,6 @@ export type ApplicationStatus =
   | "rejected"
   | "ignored";
 
-// Регион строго определяется по коду местности (86/89/72).
-// Остальные коды (например 23 — Краснодарский край) пока не поддерживаются
-// и отбрасываются на этапе импорта.
 export type Region = "hmao" | "ynao" | "tobl";
 
 // ===== Модели =====
@@ -37,22 +27,26 @@ export interface Vacancy {
   employmentTypes: EmploymentType[];
   city: string;
   region: Region;
-  createdAt: string; // даты с бэка приходят строкой (ISO), не Date
+  createdAt: string;
   updatedAt: string;
 }
 
 export interface Candidate {
   id: string;
-  name: string;
-  email: string;
-  phone: string;
+  //hhResumeId?: string; // id резюме на hh.ru, если кандидат пришёл оттуда
+  // ВАЖНО: name/email/phone теперь могут быть null — на hh.ru контактные
+  // данные (ФИО, телефон, email) платные и могут быть не открыты. До
+  // открытия показываем "—" на фронте (см. ResumeCard.tsx).
+  //name: string | null;
+  //email: string | null;
+  //phone: string | null;
   platform: string;
   region: string;
   relocationReady: boolean;
   experience: number;
-  educationLevel: string | null;   // в схеме поле опциональное (String?)
+  educationLevel: string | null;
   educationProfile: string | null;
-  employmentTypes: EmploymentType[];
+  //employmentTypes: EmploymentType[];
   createdAt: string;
   updatedAt: string;
 }
@@ -63,19 +57,17 @@ export interface Application {
   vacancyId: string;
   vacancyLabel: string;
   status: ApplicationStatus;
-  candidate: Candidate; // когда бек отдаёт application с include candidate
+  candidate: Candidate;
   vacancy?: Vacancy;
   comment?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-// ===== Поля формы поиска (Image 1) =====
-
 export interface SearchFilters {
   profession: string;
   region: string;
-  source: string;          // platform
+  source: string;
   experienceFrom: number;
   educationLevel: string;
   educationProfile: string;

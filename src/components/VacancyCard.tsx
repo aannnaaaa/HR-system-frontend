@@ -1,8 +1,8 @@
-import type { Vacancy } from "../types";
-import { employmentTypeLabels } from "../types";
+import type { Vacancy, Region } from "../types";
+import { employmentTypeLabels, regionLabels } from "../types";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { MapPin, Clock } from "lucide-react";
+import { MapPin, Landmark } from "lucide-react";
 
 interface VacancyCardProps {
   vacancy: Vacancy;
@@ -22,8 +22,8 @@ export function VacancyCard({ vacancy }: VacancyCardProps) {
               {vacancy.city}
             </span>
             <span className="inline-flex items-center gap-1">
-              <Clock className="size-3.5" />
-              Стаж 10л
+              <Landmark className="size-3.5" />
+              {regionLabels[vacancy.region as Region] ?? vacancy.region}
             </span>
           </div>
         </div>
@@ -32,9 +32,11 @@ export function VacancyCard({ vacancy }: VacancyCardProps) {
         </Badge>
       </CardHeader>
       <CardContent className="px-4">
-        <p className="text-[13px] text-muted-foreground">
-          {vacancy.description}
-        </p>
+        {vacancy.description && (
+          <p className="text-[13px] text-muted-foreground">
+            {vacancy.description}
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {vacancy.employmentTypes.map((type) => (
             <Badge key={type} variant="secondary" className="font-normal">
