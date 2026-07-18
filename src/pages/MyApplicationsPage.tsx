@@ -17,8 +17,9 @@ import { MessageSquarePlus, MapPin, Clock, Globe, GraduationCap, Eye } from "luc
 
 interface MyApplicationsPageProps {
   applications: Application[];
+  isLoading?: boolean;
   onUpdateStatus: (id: string, status: ApplicationStatus) => void;
-  onUpdateComment: (id: string, comment: string) => void;
+  onUpdateComment: (candidateId: string, description: string) => void;
 }
 
 const statusStyles: Record<ApplicationStatus, string> = {
@@ -32,6 +33,7 @@ const statusStyles: Record<ApplicationStatus, string> = {
 
 export function MyApplicationsPage({
   applications,
+  isLoading,
   onUpdateStatus,
   onUpdateComment,
 }: MyApplicationsPageProps) {
@@ -41,11 +43,11 @@ export function MyApplicationsPage({
 
   function handleStartEdit(app: Application) {
     setEditingId(app.id);
-    setDraftComment(app.comment ?? "");
+    setDraftComment(app.candidate.description ?? "");
   }
 
-  function handleSave(id: string) {
-    onUpdateComment(id, draftComment);
+  function handleSave(app: Application) {
+    onUpdateComment(app.candidateId, draftComment);
     setEditingId(null);
   }
 
@@ -57,7 +59,11 @@ export function MyApplicationsPage({
         обновляйте статус.
       </p>
 
-      {applications.length === 0 && (
+      {isLoading && (
+        <p className="mt-6 text-sm text-muted-foreground">Загружаю сохранённых кандидатов...</p>
+      )}
+
+      {!isLoading && applications.length === 0 && (
         <Card className="mt-6 items-center gap-1 border-dashed py-10 text-center">
           <div className="font-bold">Заявок пока нет</div>
           <div className="text-sm text-muted-foreground">
@@ -114,7 +120,7 @@ export function MyApplicationsPage({
                     rows={3}
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleSave(app.id)}>
+                    <Button size="sm" onClick={() => handleSave(app)}>
                       Сохранить
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
@@ -128,8 +134,8 @@ export function MyApplicationsPage({
                   onClick={() => handleStartEdit(app)}
                   className="mt-1 flex w-fit items-center gap-1.5 text-left text-sm"
                 >
-                  {app.comment ? (
-                    <span className="text-foreground/80">💬 {app.comment}</span>
+                  {app.candidate.description ? (
+                    <span className="text-foreground/80">💬 {app.candidate.description}</span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
                       <MessageSquarePlus className="size-3.5" />

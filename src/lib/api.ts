@@ -164,3 +164,19 @@ export async function getSavedCandidateById(candidateId: string): Promise<Candid
   const { data } = await apiClient.get<Candidate>(`/api/candidates/${candidateId}`);
   return data;
 }
+
+/**
+ * PATCH /api/candidates/{candidateId} — реально сохраняет комментарий
+ * (поле description в Candidate) в БД. "Статус" заявки сохранять пока
+ * некуда — модель Application закомментирована в schema.prisma, статус
+ * остаётся только на фронте до появления соответствующего поля/таблицы.
+ */
+export async function updateCandidateComment(
+  candidateId: string,
+  description: string
+): Promise<Candidate> {
+  const { data } = await apiClient.patch<Candidate>(`/api/candidates/${candidateId}`, {
+    description,
+  });
+  return data;
+}

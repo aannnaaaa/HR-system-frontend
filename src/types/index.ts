@@ -31,21 +31,26 @@ export interface Vacancy {
   updatedAt: string;
 }
 
-// GET /api/candidates/ отдаёт всё как есть из БД без выборки полей — поэтому
-// name/email/phone/employmentTypes сделаны опциональными: у кандидатов,
-// добавленных вручную (POST требует их), они будут; у остальных — могут
-// отсутствовать. На фронте показываем "—", если поля нет.
+// Candidate — как реально хранится и отдаётся бэкендом (app/api/candidates).
+// profession/specialty/platformLink добавлены недавно на бэке — раньше их
+// тут не было. name/email/phone обязательны при сохранении (POST), но
+// у результатов живого поиска hh.ru (до сохранения) их ещё нет — поэтому
+// они помечены как nullable.
 export interface Candidate {
   id: string;
   name?: string | null;
   email?: string | null;
   phone?: string | null;
-  platform: string;
+  platformLink?: string | null;
+  profession?: string | null;
+  specialty?: string | null;
+  platform?: string | null;
   region: string;
   relocationReady: boolean;
   experience: number;
   educationLevel: string | null;
   educationProfile: string | null;
+  description?: string | null; // это и есть "комментарий" в UI
   employmentTypes?: EmploymentType[];
   createdAt: string;
   updatedAt: string;
