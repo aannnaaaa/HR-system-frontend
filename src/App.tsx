@@ -4,12 +4,12 @@ import { SearchPage } from "./pages/SearchPage";
 import { MyApplicationsPage } from "./pages/MyApplicationsPage";
 import { VacancyImportPage } from "./pages/VacancyImportPage"; // Импортируем новую страницу
 import type { Application, ApplicationStatus } from "./types";
-import { mockApplications } from "./data/mockData";
+//import { mockApplications } from "./data/mockData";
 
 function App() {
   // Расширяем тип состояния: "search" | "applications" | "vacancies"
   const [activePage, setActivePage] = useState<"search" | "applications" | "vacancies">("search");
-  const [applications, setApplications] = useState<Application[]>(mockApplications);
+  const [applications, setApplications] = useState<Application[]>([]);
 
   function handleAddApplication(app: Application) {
     setApplications((prev) => [...prev, app]);

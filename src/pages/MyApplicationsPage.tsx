@@ -5,6 +5,7 @@ import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
+import { CandidateModal } from "../components/CandidateModal";
 import {
   Select,
   SelectContent,
@@ -36,9 +37,7 @@ export function MyApplicationsPage({
 }: MyApplicationsPageProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftComment, setDraftComment] = useState("");
-  // TODO: довязать модалку кандидата — жду CandidateModal.tsx, чтобы не
-  // гадать про его пропсы (onSelect может задублировать заявку).
-  // const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
 
   function handleStartEdit(app: Application) {
     setEditingId(app.id);
@@ -72,9 +71,8 @@ export function MyApplicationsPage({
           <Card key={app.id} className="flex-row items-center justify-between gap-4 p-5">
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center gap-2">
-                {/* Имени у кандидата больше нет — используем профиль образования как заголовок */}
                 <span className="font-bold">
-                  {app.candidate.educationProfile ?? "Кандидат"}
+                  {app.candidate.name ?? app.candidate.educationProfile ?? "Кандидат"}
                 </span>
                 <Badge className={`border-transparent font-normal ${statusStyles[app.status]}`}>
                   {applicationStatusLabels[app.status]}
@@ -82,7 +80,7 @@ export function MyApplicationsPage({
               </div>
 
               <div className="text-[13px] text-muted-foreground">
-                Кандидат #{app.candidate.id.slice(0, 8)} → {app.vacancyLabel}
+                {app.candidate.educationProfile ?? "—"} → {app.vacancyLabel}
               </div>
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -143,10 +141,12 @@ export function MyApplicationsPage({
             </div>
 
             <div className="flex shrink-0 flex-col items-end gap-2">
-              {/* TODO: подключить открытие CandidateModal, как только пришлёте
-                  исходник компонента — сейчас неясно, что делает его onSelect
-                  в контексте уже поданной заявки */}
-              <Button size="sm" variant="outline" className="gap-1.5" disabled>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setSelectedApp(app)}
+              >
                 <Eye className="size-3.5" />
                 Открыть карточку
               </Button>
@@ -170,6 +170,16 @@ export function MyApplicationsPage({
           </Card>
         ))}
       </div>
+
+      {selectedApp && (
+        // onSelect не передаём — модалка открывается в режиме "только
+        // просмотр", без кнопки "Выбрать вакансию" (заявка уже есть).
+        <CandidateModal
+          candidate={selectedApp.candidate}
+          vacancyLabel={selectedApp.vacancyLabel}
+          onClose={() => setSelectedApp(null)}
+        />
+      )}
     </div>
   );
 }

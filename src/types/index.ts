@@ -31,22 +31,22 @@ export interface Vacancy {
   updatedAt: string;
 }
 
+// GET /api/candidates/ отдаёт всё как есть из БД без выборки полей — поэтому
+// name/email/phone/employmentTypes сделаны опциональными: у кандидатов,
+// добавленных вручную (POST требует их), они будут; у остальных — могут
+// отсутствовать. На фронте показываем "—", если поля нет.
 export interface Candidate {
   id: string;
-  //hhResumeId?: string; // id резюме на hh.ru, если кандидат пришёл оттуда
-  // ВАЖНО: name/email/phone теперь могут быть null — на hh.ru контактные
-  // данные (ФИО, телефон, email) платные и могут быть не открыты. До
-  // открытия показываем "—" на фронте (см. ResumeCard.tsx).
-  //name: string | null;
-  //email: string | null;
-  //phone: string | null;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
   platform: string;
   region: string;
   relocationReady: boolean;
   experience: number;
   educationLevel: string | null;
   educationProfile: string | null;
-  //employmentTypes: EmploymentType[];
+  employmentTypes?: EmploymentType[];
   createdAt: string;
   updatedAt: string;
 }

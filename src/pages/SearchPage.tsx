@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { SearchForm } from "../components/SearchForm";
 import { VacancyCard } from "../components/VacancyCard";
-import { ResumeCard } from "../components/ResumeCard";
+import { SearchResumePreviewCard } from "../components/SearchResumePreviewCard";
 import { CandidateModal } from "../components/CandidateModal";
+import { SaveCandidateDialog } from "../components/SaveCandidateDialog";
 import { Card } from "../components/ui/card";
-import { searchVacancies, searchCandidates } from "../lib/api";
-import { filterMockCandidates } from "../data/mockData";
+import {
+  searchVacancies,
+  searchCandidates,
+  saveCandidate,
+  mapSearchResultToCandidate,
+  type HHResumeSearchResult,
+  type SaveCandidatePayload,
+} from "../lib/api";
 import type { SearchFilters, Candidate, Vacancy, Application } from "../types";
-
-// Пока бэкенд не реализовал /api/candidates/search (сейчас отдаёт 404),
-// используем мок-данные, чтобы проверять вёрстку и логику поиска.
-// Как только эндпоинт заработает — этот флаг и фолбэк можно убрать.
-const USE_MOCK_CANDIDATES_FALLBACK = true;
 
 type SearchState = "idle" | "loading" | "found" | "notfound" | "error";
 
@@ -24,43 +26,34 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
   const [searchState, setSearchState] = useState<SearchState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  // Живые результаты поиска hh.ru — НЕ Candidate из БД.
+  const [candidates, setCandidates] = useState<HHResumeSearchResult[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  // Кандидат, которого HR нажал "Выбрать вакансию" — ждёт дозаполнения
+  // обязательных полей перед реальным сохранением в БД.
+  const [candidateToSave, setCandidateToSave] = useState<Candidate | null>(null);
 
   async function handleSearch(filters: SearchFilters) {
     if (!filters.profession.trim()) return;
 
     setSearchState("loading");
 
-    // Promise.allSettled вместо Promise.all: один упавший запрос (например,
-    // /api/candidates/search ещё не реализован на бэке и отдаёт 404) не должен
-    // прятать успешный результат другого (vacancies).
     const [vacanciesResult, candidatesResult] = await Promise.allSettled([
       searchVacancies(filters),
       searchCandidates(filters),
     ]);
 
     const matchedVacancies = vacanciesResult.status === "fulfilled" ? vacanciesResult.value : [];
-
-    let matchedCandidates: Candidate[] =
-      candidatesResult.status === "fulfilled" ? candidatesResult.value : [];
+    const matchedCandidates = candidatesResult.status === "fulfilled" ? candidatesResult.value : [];
 
     if (candidatesResult.status === "rejected") {
-      console.error("Поиск кандидатов не удался:", candidatesResult.reason);
-      if (USE_MOCK_CANDIDATES_FALLBACK) {
-        matchedCandidates = filterMockCandidates(filters);
-      }
+      console.error("Поиск резюме не удался:", candidatesResult.reason);
     }
     if (vacanciesResult.status === "rejected") {
       console.error("Поиск вакансий не удался:", vacanciesResult.reason);
     }
 
-    // Общая ошибка показывается, только если вакансии упали и по кандидатам
-    // нет даже мок-фолбэка — если хоть что-то есть, показываем то, что есть.
-    const candidatesTrulyFailed =
-      candidatesResult.status === "rejected" && !USE_MOCK_CANDIDATES_FALLBACK;
-
-    if (vacanciesResult.status === "rejected" && candidatesTrulyFailed) {
+    if (vacanciesResult.status === "rejected" && candidatesResult.status === "rejected") {
       const err = vacanciesResult.reason;
       setErrorMessage(err instanceof Error ? err.message : "Не получилось выполнить поиск");
       setSearchState("error");
@@ -74,20 +67,33 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
     );
   }
 
-  function handleSelectCandidate(candidate: Candidate) {
+  function handleOpenResume(resume: HHResumeSearchResult) {
+    setSelectedCandidate(mapSearchResultToCandidate(resume));
+  }
+
+  // "Выбрать вакансию" в модалке предпросмотра -> открываем форму
+  // дозаполнения обязательных полей, а не сохраняем сразу.
+  function handleWantToSelect(candidate: Candidate) {
+    setSelectedCandidate(null);
+    setCandidateToSave(candidate);
+  }
+
+  async function handleSaveCandidate(payload: SaveCandidatePayload) {
+    const saved = await saveCandidate(payload);
+
     const newApplication: Application = {
       id: Date.now().toString(),
-      candidateId: candidate.id,
+      candidateId: saved.id,
       vacancyId: "v1",
       vacancyLabel: "Инженер-геолог",
       status: "new",
-      candidate,
+      candidate: saved,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     onAddApplication(newApplication);
-    setSelectedCandidate(null);
-    alert(`Кандидат добавлен в заявки!`);
+    setCandidateToSave(null);
+    alert("Кандидат сохранён и добавлен в заявки!");
   }
 
   return (
@@ -132,11 +138,11 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
               Подходящие резюме ({candidates.length})
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {candidates.map((c) => (
-                <ResumeCard
-                  key={c.id}
-                  candidate={c}
-                  onOpen={(candidate) => setSelectedCandidate(candidate)}
+              {candidates.map((resume) => (
+                <SearchResumePreviewCard
+                  key={resume.id}
+                  resume={resume}
+                  onOpen={() => handleOpenResume(resume)}
                 />
               ))}
             </div>
@@ -149,7 +155,15 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
           candidate={selectedCandidate}
           vacancyLabel="Инженер-геолог"
           onClose={() => setSelectedCandidate(null)}
-          onSelect={handleSelectCandidate}
+          onSelect={handleWantToSelect}
+        />
+      )}
+
+      {candidateToSave && (
+        <SaveCandidateDialog
+          previewCandidate={candidateToSave}
+          onClose={() => setCandidateToSave(null)}
+          onSubmit={handleSaveCandidate}
         />
       )}
     </div>

@@ -17,8 +17,14 @@ interface CandidateModalProps {
   candidate: Candidate;
   vacancyLabel: string;
   onClose: () => void;
-  onSelect: (candidate: Candidate) => void;
+  // Необязательный: если не передать — кнопка "Выбрать вакансию" не
+  // рендерится, модалка работает в режиме "только посмотреть" (например,
+  // для уже поданной заявки в "Моих заявках" — там повторный выбор не
+  // имеет смысла и создал бы дубликат).
+  onSelect?: (candidate: Candidate) => void;
 }
+
+const DASH = "—";
 
 export function CandidateModal({
   candidate,
@@ -30,9 +36,9 @@ export function CandidateModal({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>{candidate.name}</DialogTitle>
+          <DialogTitle>{candidate.name ?? candidate.educationProfile ?? "Кандидат"}</DialogTitle>
           <DialogDescription>
-            {candidate.educationProfile} • {candidate.platform}
+            {candidate.educationProfile ?? DASH} • {candidate.platform}
           </DialogDescription>
         </DialogHeader>
 
@@ -47,19 +53,19 @@ export function CandidateModal({
           </ModalField>
 
           <ModalField icon={<Clock className="size-4" />} label="Стаж">
-            {candidate.experience} лет • Полная занятость
+            {candidate.experience} лет
           </ModalField>
 
           <ModalField icon={<GraduationCap className="size-4" />} label="Образование">
-            {candidate.educationLevel} • {candidate.educationProfile}
+            {candidate.educationLevel ?? DASH} • {candidate.educationProfile ?? DASH}
           </ModalField>
 
           <ModalField icon={<Mail className="size-4" />} label="Email">
-            {candidate.email}
+            {candidate.email ?? DASH}
           </ModalField>
 
           <ModalField icon={<Phone className="size-4" />} label="Телефон">
-            {candidate.phone}
+            {candidate.phone ?? DASH}
           </ModalField>
         </div>
 
@@ -76,7 +82,9 @@ export function CandidateModal({
           <Button variant="secondary" onClick={onClose}>
             Закрыть
           </Button>
-          <Button onClick={() => onSelect(candidate)}>Выбрать вакансию</Button>
+          {onSelect && (
+            <Button onClick={() => onSelect(candidate)}>Выбрать вакансию</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
