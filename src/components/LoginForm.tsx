@@ -6,14 +6,24 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 
-export function LoginForm() {
+interface LoginFormProps {
+  onLogin: () => void;
+}
+
+/**
+ * ВРЕМЕННО: реальной проверки логина/пароля пока нет — принимается что
+ * угодно (в т.ч. пустые поля). Когда появится настоящая авторизация
+ * (например, через Clerk, который уже используется на бэке) — здесь нужно
+ * заменить handleSubmit на реальный запрос и обрабатывать ошибки входа.
+ */
+export function LoginForm({ onLogin }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log({ email, password });
+    onLogin();
   }
 
   return (
@@ -33,11 +43,11 @@ export function LoginForm() {
             <div className="space-y-2">
               <Label htmlFor="email">Электронная почта</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-2 size-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="example@gazprom.ru"
+                  placeholder="test@mail.ru"
                   className="pl-10"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -48,11 +58,11 @@ export function LoginForm() {
             <div className="space-y-2">
               <Label htmlFor="password">Пароль</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-2 size-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Введите пароль"
+                  placeholder="123456"
                   className="pl-10 pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

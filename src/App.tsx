@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
 import { Header } from "./components/Header";
+import { LoginForm } from "./components/LoginForm";
 import { SearchPage } from "./pages/SearchPage";
 import { MyApplicationsPage } from "./pages/MyApplicationsPage";
 import { VacancyImportPage } from "./pages/VacancyImportPage";
 import type { Application, ApplicationStatus } from "./types";
 import { getSavedCandidates, updateCandidateComment, updateCandidateStatus } from "./lib/api";
 
+// ВРЕМЕННО: ключ для мок-авторизации в localStorage. Реальной проверки
+// логина/пароля нет — см. LoginForm.tsx. Когда появится настоящая
+// авторизация (Clerk уже используется на бэке) — эту часть нужно заменить.
+const AUTH_STORAGE_KEY = "persona-gaz-mock-auth";
+
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => localStorage.getItem(AUTH_STORAGE_KEY) === "true"
+  );
   const [activePage, setActivePage] = useState<"search" | "applications" | "vacancies">("search");
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoadingSaved, setIsLoadingSaved] = useState(true);
@@ -16,6 +25,7 @@ function App() {
   // Candidate, поэтому подтягиваются как есть — статус больше не
   // сбрасывается на "new" при перезагрузке.
   useEffect(() => {
+    if (!isAuthenticated) return;
     let cancelled = false;
 
     async function loadSavedCandidates() {
@@ -46,7 +56,18 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAuthenticated]);
+
+  function handleLogin() {
+    localStorage.setItem(AUTH_STORAGE_KEY, "true");
+    setIsAuthenticated(true);
+    setActivePage("search"); // редирект на страницу с фильтрацией
+  }
+
+  function handleLogout() {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setIsAuthenticated(false);
+  }
 
   function handleAddApplication(app: Application) {
     setApplications((prev) => [...prev, app]);
@@ -90,9 +111,13 @@ function App() {
     );
   }
 
+  if (!isAuthenticated) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header activePage={activePage} onNavigate={setActivePage} />
+      <Header activePage={activePage} onNavigate={setActivePage} onLogout={handleLogout} />
 
       {activePage === "search" && (
         <SearchPage

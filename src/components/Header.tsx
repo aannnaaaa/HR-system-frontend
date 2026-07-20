@@ -1,13 +1,13 @@
-import { LogOut, Search, FileText, Upload } from "lucide-react"; // Добавили Upload
+import { LogOut, Search, FileText, Upload } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface HeaderProps {
-  // Добавляем "vacancies" в союзный тип
-  activePage: "search" | "applications" | "vacancies"; 
+  activePage: "search" | "applications" | "vacancies";
   onNavigate: (page: "search" | "applications" | "vacancies") => void;
+  onLogout: () => void;
 }
 
-export function Header({ activePage, onNavigate }: HeaderProps) {
+export function Header({ activePage, onNavigate, onLogout }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-white/80 px-8 py-3 backdrop-blur">
       <div className="text-lg font-extrabold tracking-tight text-blue-600">
@@ -40,7 +40,6 @@ export function Header({ activePage, onNavigate }: HeaderProps) {
           Мои заявки
         </Button>
 
-        {/* НОВАЯ КНОПКА ДЛЯ ВАКАНСИЙ */}
         <Button
           variant={activePage === "vacancies" ? "secondary" : "ghost"}
           className={
@@ -55,7 +54,7 @@ export function Header({ activePage, onNavigate }: HeaderProps) {
         </Button>
       </nav>
 
-      <Button variant="ghost" className="text-muted-foreground">
+      <Button variant="ghost" className="text-muted-foreground" onClick={onLogout}>
         <LogOut className="size-4" />
         Выйти
       </Button>
