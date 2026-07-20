@@ -12,19 +12,14 @@ import {
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { MapPin, Clock, GraduationCap, Mail, Phone, Eye, ExternalLink, AlertTriangle } from "lucide-react";
+import { MapPin, Clock, GraduationCap, Mail, Phone, Eye, ExternalLink, AlertTriangle, Link } from "lucide-react";
 import { getHHResumeUrl } from "../lib/api";
 
 interface CandidateModalProps {
   candidate: Candidate;
   vacancyLabel: string;
   onClose: () => void;
-  // Необязательный: если не передать — кнопка "Выбрать вакансию" не
-  // рендерится (режим "только просмотр", например в "Моих заявках").
   onSelect?: (candidate: Candidate) => void;
-  // Необязательный: если передан — рендерится блок "Посмотреть контакт"
-  // (используется только для предпросмотра живого поиска hh.ru, когда
-  // контакты ещё не раскрыты и не сохранены).
   onRevealContact?: (candidate: Candidate) => Promise<void>;
 }
 
@@ -87,6 +82,21 @@ export function CandidateModal({
           <ModalField icon={<Phone className="size-4" />} label="Телефон">
             {candidate.phone ?? DASH}
           </ModalField>
+
+          {/* === Новое поле — ссылка на резюме === */}
+          {candidate.platformLink && (
+            <ModalField icon={<Link className="size-4" />} label="Резюме">
+              <a
+                href={candidate.platformLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                Открыть резюме
+                <ExternalLink className="size-3.5" />
+              </a>
+            </ModalField>
+          )}
 
           {canRevealContact && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
