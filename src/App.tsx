@@ -4,7 +4,7 @@ import { SearchPage } from "./pages/SearchPage";
 import { MyApplicationsPage } from "./pages/MyApplicationsPage";
 import { VacancyImportPage } from "./pages/VacancyImportPage";
 import type { Application, ApplicationStatus } from "./types";
-import { getSavedCandidates, updateCandidateComment } from "./lib/api";
+import { getSavedCandidates, updateCandidateComment, updateCandidateStatus } from "./lib/api";
 
 function App() {
   const [activePage, setActivePage] = useState<"search" | "applications" | "vacancies">("search");
@@ -12,12 +12,9 @@ function App() {
   const [isLoadingSaved, setIsLoadingSaved] = useState(true);
 
   // При каждом запуске подтягиваем реально сохранённых кандидатов из БД
-  // (GET /api/candidates). ВАЖНО: Application нигде не персистится на бэке
-  // (такого API нет) — персистится только Candidate. Поэтому здесь
-  // "заявки" пересобираются заново на основе сохранённых кандидатов, с
-  // дефолтным статусом "new". Если вы меняли статус/комментарий раньше —
-  // после перезагрузки страницы они не восстановятся, пока не появится
-  // отдельный backend для Application.
+  // (GET /api/candidates). status и description теперь реальные поля
+  // Candidate, поэтому подтягиваются как есть — статус больше не
+  // сбрасывается на "new" при перезагрузке.
   useEffect(() => {
     let cancelled = false;
 
@@ -31,7 +28,7 @@ function App() {
           candidateId: candidate.id,
           vacancyId: "unknown",
           vacancyLabel: candidate.profession ?? candidate.educationProfile ?? "—",
-          status: "new",
+          status: candidate.status ?? "new",
           candidate,
           createdAt: candidate.createdAt,
           updatedAt: candidate.updatedAt,
@@ -72,11 +69,24 @@ function App() {
     }
   }
 
-  // Статус заявки сохранять пока некуда (нет поля/таблицы на бэке) —
-  // меняется только локально, сбрасывается при перезагрузке страницы.
-  function handleUpdateStatus(id: string, status: ApplicationStatus) {
+  // Статус теперь реально сохраняется — PATCH /api/candidates/{id}.
+  async function handleUpdateStatus(candidateId: string, status: ApplicationStatus) {
+    try {
+      const updated = await updateCandidateStatus(candidateId, status);
+      setApplications((prev) =>
+        prev.map((app) =>
+          app.candidateId === candidateId ? { ...app, status, candidate: updated } : app
+        )
+      );
+    } catch (err) {
+      console.error("Не удалось сохранить статус:", err);
+      alert("Не получилось сохранить статус");
+    }
+  }
+
+  function handleCandidateUpdated(updated: Application["candidate"]) {
     setApplications((prev) =>
-      prev.map((app) => (app.id === id ? { ...app, status } : app))
+      prev.map((app) => (app.candidateId === updated.id ? { ...app, candidate: updated } : app))
     );
   }
 
@@ -97,6 +107,7 @@ function App() {
           isLoading={isLoadingSaved}
           onUpdateStatus={handleUpdateStatus}
           onUpdateComment={handleUpdateComment}
+          onCandidateUpdated={handleCandidateUpdated}
         />
       )}
 

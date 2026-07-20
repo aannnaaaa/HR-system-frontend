@@ -13,46 +13,38 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { withPlaceholder, type SaveCandidatePayload } from "../lib/api";
-import { Info } from "lucide-react";
+import { isUnfilled, withPlaceholder, type SaveCandidatePayload } from "../lib/api";
 
-interface SaveCandidateDialogProps {
-  // Кандидат-предпросмотр из живого поиска hh.ru (id/region/experience/
-  // educationLevel/educationProfile уже известны, остальное — нет).
-  previewCandidate: Candidate;
+interface EditCandidateDialogProps {
+  candidate: Candidate;
   onClose: () => void;
-  onSubmit: (payload: SaveCandidatePayload) => Promise<void>;
+  onSubmit: (payload: Partial<SaveCandidatePayload>) => Promise<void>;
 }
 
 const employmentTypeOptions = Object.entries(employmentTypeLabels) as [EmploymentType, string][];
 
+// Если поле раньше сохранили как плейсхолдер "—" — показываем пустое поле
+// ввода, а не буквальный дефис, чтобы не приходилось его стирать вручную.
+function editableValue(value?: string | null): string {
+  return isUnfilled(value) ? "" : value ?? "";
+}
+
 /**
- * Форма сохранения кандидата в БД. Большинство полей теперь НЕобязательны —
- * если резюме ещё не посмотрели глазами, можно сохранить кандидата "как
- * есть" и дозаполнить позже (см. EditCandidateDialog.tsx). Бэкенд всё равно
- * требует непустые строки — пустые поля отправляются как "—" (плейсхолдер
- * "пока неизвестно", withPlaceholder из api.ts), а не блокируют сохранение.
- *
- * Исключение — тип трудоустройства: это закрытый enum на бэке, там нет
- * значения "неизвестно", поэтому он остаётся обязательным.
+ * Форма дозаполнения данных кандидата, когда они наконец стали известны
+ * (резюме посмотрели, узнали контакты и т.д.) — сохранённого при
+ * SaveCandidateDialog плейсхолдера "—" уже недостаточно.
  */
-export function SaveCandidateDialog({
-  previewCandidate,
-  onClose,
-  onSubmit,
-}: SaveCandidateDialogProps) {
-  const [name, setName] = useState(previewCandidate.name ?? "");
-  const [email, setEmail] = useState(previewCandidate.email ?? "");
-  const [phone, setPhone] = useState(previewCandidate.phone ?? "");
-  const [specialty, setSpecialty] = useState(previewCandidate.specialty ?? "");
-  const [profession, setProfession] = useState(
-    previewCandidate.profession ?? previewCandidate.educationProfile ?? ""
+export function EditCandidateDialog({ candidate, onClose, onSubmit }: EditCandidateDialogProps) {
+  const [name, setName] = useState(editableValue(candidate.name));
+  const [email, setEmail] = useState(editableValue(candidate.email));
+  const [phone, setPhone] = useState(editableValue(candidate.phone));
+  const [profession, setProfession] = useState(editableValue(candidate.profession));
+  const [specialty, setSpecialty] = useState(editableValue(candidate.specialty));
+  const [platformLink, setPlatformLink] = useState(editableValue(candidate.platformLink));
+  const [selectedTypes, setSelectedTypes] = useState<EmploymentType[]>(
+    candidate.employmentTypes ?? []
   );
-  const [platformLink, setPlatformLink] = useState(
-    `https://hh.ru/resume/${previewCandidate.id}`
-  );
-  const [selectedTypes, setSelectedTypes] = useState<EmploymentType[]>([]);
-  const [relocationReady, setRelocationReady] = useState(false);
+  const [relocationReady, setRelocationReady] = useState(candidate.relocationReady);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,8 +54,6 @@ export function SaveCandidateDialog({
     );
   }
 
-  // Единственное реально обязательное поле — тип трудоустройства (enum,
-  // нет значения "неизвестно"). Остальное можно оставить пустым.
   const isValid = selectedTypes.length > 0;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -77,18 +67,14 @@ export function SaveCandidateDialog({
         name: withPlaceholder(name),
         email: withPlaceholder(email),
         phone: withPlaceholder(phone),
-        platformLink: withPlaceholder(platformLink),
         profession: withPlaceholder(profession),
         specialty: withPlaceholder(specialty),
-        region: previewCandidate.region,
+        platformLink: withPlaceholder(platformLink),
         relocationReady,
-        experience: previewCandidate.experience,
-        educationLevel: previewCandidate.educationLevel,
-        educationProfile: previewCandidate.educationProfile,
         employmentTypes: selectedTypes,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не получилось сохранить кандидата");
+      setError(err instanceof Error ? err.message : "Не получилось сохранить изменения");
     } finally {
       setIsSaving(false);
     }
@@ -98,24 +84,18 @@ export function SaveCandidateDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle>Сохранить кандидата</DialogTitle>
+          <DialogTitle>Изменить данные кандидата</DialogTitle>
           <DialogDescription>
-            Не успели посмотреть резюме? Можно сохранить как есть и
-            дозаполнить данные позже — карточка появится с пометкой
-            "требует уточнения".
+            Дозаполните то, что узнали — остальное можно оставить пустым и
+            вернуться позже.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div className="flex items-start gap-2 rounded-md bg-blue-50 p-2.5 text-xs text-blue-800">
-            <Info className="mt-0.5 size-3.5 shrink-0" />
-            <span>Поля ниже необязательны — оставьте пустыми, если ещё не знаете.</span>
-          </div>
-
           <div className="space-y-1.5">
-            <Label htmlFor="save-name">ФИО</Label>
+            <Label htmlFor="edit-name">ФИО</Label>
             <Input
-              id="save-name"
+              id="edit-name"
               placeholder="Пока неизвестно"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -123,9 +103,9 @@ export function SaveCandidateDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="save-email">Email</Label>
+            <Label htmlFor="edit-email">Email</Label>
             <Input
-              id="save-email"
+              id="edit-email"
               type="email"
               placeholder="Пока неизвестно"
               value={email}
@@ -134,9 +114,9 @@ export function SaveCandidateDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="save-phone">Телефон</Label>
+            <Label htmlFor="edit-phone">Телефон</Label>
             <Input
-              id="save-phone"
+              id="edit-phone"
               placeholder="Пока неизвестно"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -144,9 +124,9 @@ export function SaveCandidateDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="save-profession">Профессия</Label>
+            <Label htmlFor="edit-profession">Профессия</Label>
             <Input
-              id="save-profession"
+              id="edit-profession"
               placeholder="Пока неизвестно"
               value={profession}
               onChange={(e) => setProfession(e.target.value)}
@@ -154,19 +134,19 @@ export function SaveCandidateDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="save-specialty">Сфера деятельности</Label>
+            <Label htmlFor="edit-specialty">Сфера деятельности</Label>
             <Input
-              id="save-specialty"
-              placeholder="Например, Геология и разведка недр"
+              id="edit-specialty"
+              placeholder="Пока неизвестно"
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="save-link">Ссылка на резюме</Label>
+            <Label htmlFor="edit-link">Ссылка на резюме</Label>
             <Input
-              id="save-link"
+              id="edit-link"
               value={platformLink}
               onChange={(e) => setPlatformLink(e.target.value)}
             />
@@ -189,11 +169,6 @@ export function SaveCandidateDialog({
                 </Badge>
               ))}
             </div>
-            {selectedTypes.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Единственное обязательное поле — выберите хотя бы один тип.
-              </p>
-            )}
           </div>
 
           <label className="flex items-center gap-2 text-sm">
@@ -212,7 +187,7 @@ export function SaveCandidateDialog({
               Отмена
             </Button>
             <Button type="submit" disabled={!isValid || isSaving}>
-              {isSaving ? "Сохраняю..." : "Сохранить"}
+              {isSaving ? "Сохраняю..." : "Сохранить изменения"}
             </Button>
           </DialogFooter>
         </form>

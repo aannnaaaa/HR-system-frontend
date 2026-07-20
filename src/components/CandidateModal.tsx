@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Candidate, Region } from "../types";
 import { regionLabels } from "../types";
 import {
@@ -11,17 +12,20 @@ import {
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { MapPin, Clock, GraduationCap, Mail, Phone } from "lucide-react";
+import { MapPin, Clock, GraduationCap, Mail, Phone, Eye, ExternalLink, AlertTriangle } from "lucide-react";
+import { getHHResumeUrl } from "../lib/api";
 
 interface CandidateModalProps {
   candidate: Candidate;
   vacancyLabel: string;
   onClose: () => void;
   // Необязательный: если не передать — кнопка "Выбрать вакансию" не
-  // рендерится, модалка работает в режиме "только посмотреть" (например,
-  // для уже поданной заявки в "Моих заявках" — там повторный выбор не
-  // имеет смысла и создал бы дубликат).
+  // рендерится (режим "только просмотр", например в "Моих заявках").
   onSelect?: (candidate: Candidate) => void;
+  // Необязательный: если передан — рендерится блок "Посмотреть контакт"
+  // (используется только для предпросмотра живого поиска hh.ru, когда
+  // контакты ещё не раскрыты и не сохранены).
+  onRevealContact?: (candidate: Candidate) => Promise<void>;
 }
 
 const DASH = "—";
@@ -31,14 +35,30 @@ export function CandidateModal({
   vacancyLabel,
   onClose,
   onSelect,
+  onRevealContact,
 }: CandidateModalProps) {
+  const [isRevealing, setIsRevealing] = useState(false);
+
+  const hasContacts = Boolean(candidate.email || candidate.phone);
+  const canRevealContact = !hasContacts && !!onRevealContact;
+
+  async function handleRevealContact() {
+    if (!onRevealContact) return;
+    setIsRevealing(true);
+    try {
+      await onRevealContact(candidate);
+    } finally {
+      setIsRevealing(false);
+    }
+  }
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>{candidate.name ?? candidate.educationProfile ?? "Кандидат"}</DialogTitle>
           <DialogDescription>
-            {candidate.educationProfile ?? DASH} • {candidate.platform}
+            {candidate.educationProfile ?? DASH} • {candidate.platform ?? "hh.ru"}
           </DialogDescription>
         </DialogHeader>
 
@@ -67,13 +87,48 @@ export function CandidateModal({
           <ModalField icon={<Phone className="size-4" />} label="Телефон">
             {candidate.phone ?? DASH}
           </ModalField>
+
+          {canRevealContact && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-start gap-2 text-xs text-amber-800">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <span>
+                  Контакты hh.ru скрыты, пока их не открыл ваш аккаунт
+                  работодателя на hh.ru (обычно платно). Кнопка ниже просто
+                  проверяет, доступны ли они уже — если нет, контакты
+                  всё равно останутся скрытыми.
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={handleRevealContact}
+                  disabled={isRevealing}
+                >
+                  <Eye className="size-3.5" />
+                  {isRevealing ? "Открываем..." : "Посмотреть контакт"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => window.open(getHHResumeUrl(candidate.id), "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink className="size-3.5" />
+                  Открыть на hh.ru
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <Separator />
 
         <div className="rounded-lg bg-muted/50 p-3">
           <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Связанная вакансия
+            Профессия
           </div>
           <div className="mt-0.5 text-sm">{vacancyLabel}</div>
         </div>

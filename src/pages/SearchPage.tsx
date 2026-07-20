@@ -10,6 +10,7 @@ import {
   searchCandidates,
   saveCandidate,
   mapSearchResultToCandidate,
+  revealResumeContact,
   type HHResumeSearchResult,
   type SaveCandidatePayload,
 } from "../lib/api";
@@ -78,14 +79,31 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
     setCandidateToSave(candidate);
   }
 
+  // "Посмотреть контакт" — платное действие на стороне hh.ru. Дергается
+  // только по явному клику в модалке, обновляет открытую карточку
+  // реальными name/email/phone.
+  async function handleRevealContact(candidate: Candidate) {
+    try {
+      const revealed = await revealResumeContact(candidate.id);
+      setSelectedCandidate((prev) =>
+        prev && prev.id === candidate.id
+          ? { ...prev, name: revealed.name, email: revealed.email, phone: revealed.phone }
+          : prev
+      );
+    } catch (err) {
+      console.error("Не удалось раскрыть контакт:", err);
+      alert(err instanceof Error ? err.message : "Не получилось раскрыть контакт");
+    }
+  }
+
   async function handleSaveCandidate(payload: SaveCandidatePayload) {
     const saved = await saveCandidate(payload);
 
     const newApplication: Application = {
       id: Date.now().toString(),
       candidateId: saved.id,
-      vacancyId: "v1",
-      vacancyLabel: "Инженер-геолог",
+      vacancyId: "unknown",
+      vacancyLabel: saved.profession ?? saved.educationProfile ?? "—",
       status: "new",
       candidate: saved,
       createdAt: new Date().toISOString(),
@@ -153,9 +171,10 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
       {selectedCandidate && (
         <CandidateModal
           candidate={selectedCandidate}
-          vacancyLabel="Инженер-геолог"
+          vacancyLabel={selectedCandidate.profession ?? selectedCandidate.educationProfile ?? "—"}
           onClose={() => setSelectedCandidate(null)}
           onSelect={handleWantToSelect}
+          onRevealContact={handleRevealContact}
         />
       )}
 

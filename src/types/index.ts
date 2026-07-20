@@ -51,6 +51,7 @@ export interface Candidate {
   educationLevel: string | null;
   educationProfile: string | null;
   description?: string | null; // это и есть "комментарий" в UI
+  status?: ApplicationStatus; // реально хранится теперь в Candidate
   employmentTypes?: EmploymentType[];
   createdAt: string;
   updatedAt: string;
