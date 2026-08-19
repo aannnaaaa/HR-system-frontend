@@ -23,17 +23,10 @@ interface EditCandidateDialogProps {
 
 const employmentTypeOptions = Object.entries(employmentTypeLabels) as [EmploymentType, string][];
 
-// Если поле раньше сохранили как плейсхолдер "—" — показываем пустое поле
-// ввода, а не буквальный дефис, чтобы не приходилось его стирать вручную.
 function editableValue(value?: string | null): string {
   return isUnfilled(value) ? "" : value ?? "";
 }
 
-/**
- * Форма дозаполнения данных кандидата, когда они наконец стали известны
- * (резюме посмотрели, узнали контакты и т.д.) — сохранённого при
- * SaveCandidateDialog плейсхолдера "—" уже недостаточно.
- */
 export function EditCandidateDialog({ candidate, onClose, onSubmit }: EditCandidateDialogProps) {
   const [name, setName] = useState(editableValue(candidate.name));
   const [email, setEmail] = useState(editableValue(candidate.email));
@@ -86,7 +79,7 @@ export function EditCandidateDialog({ candidate, onClose, onSubmit }: EditCandid
         <DialogHeader>
           <DialogTitle>Изменить данные кандидата</DialogTitle>
           <DialogDescription>
-            Дозаполните то, что узнали — остальное можно оставить пустым и
+            Дозаполните то, что узнали - остальное можно оставить пустым и
             вернуться позже.
           </DialogDescription>
         </DialogHeader>

@@ -10,12 +10,6 @@ interface SearchResumePreviewCardProps {
 
 const DASH = "—";
 
-/**
- * Лёгкая карточка предпросмотра результата живого поиска hh.ru.
- * По клику "Открыть" резюме превращается в Candidate-совместимый объект
- * (см. mapSearchResultToCandidate в api.ts) и открывается в CandidateModal —
- * там же доступно "Выбрать вакансию".
- */
 export function SearchResumePreviewCard({ resume, onOpen }: SearchResumePreviewCardProps) {
   const experienceYears = resume.totalExperienceMonths
     ? Math.round(resume.totalExperienceMonths / 12)

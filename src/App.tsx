@@ -7,9 +7,6 @@ import { VacancyImportPage } from "./pages/VacancyImportPage";
 import type { Application, ApplicationStatus } from "./types";
 import { getSavedCandidates, updateCandidateComment, updateCandidateStatus } from "./lib/api";
 
-// ВРЕМЕННО: ключ для мок-авторизации в localStorage. Реальной проверки
-// логина/пароля нет — см. LoginForm.tsx. Когда появится настоящая
-// авторизация (Clerk уже используется на бэке) — эту часть нужно заменить.
 const AUTH_STORAGE_KEY = "persona-gaz-mock-auth";
 
 function App() {
@@ -20,10 +17,7 @@ function App() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoadingSaved, setIsLoadingSaved] = useState(true);
 
-  // При каждом запуске подтягиваем реально сохранённых кандидатов из БД
-  // (GET /api/candidates). status и description теперь реальные поля
-  // Candidate, поэтому подтягиваются как есть — статус больше не
-  // сбрасывается на "new" при перезагрузке.
+
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
@@ -61,7 +55,7 @@ function App() {
   function handleLogin() {
     localStorage.setItem(AUTH_STORAGE_KEY, "true");
     setIsAuthenticated(true);
-    setActivePage("search"); // редирект на страницу с фильтрацией
+    setActivePage("search"); 
   }
 
   function handleLogout() {
@@ -73,9 +67,6 @@ function App() {
     setApplications((prev) => [...prev, app]);
   }
 
-  // Комментарий реально сохраняется в БД — это поле description у Candidate,
-  // а не у "заявки" (Application-таблицы не существует). Принимаем
-  // candidateId, а не id заявки.
   async function handleUpdateComment(candidateId: string, description: string) {
     try {
       const updated = await updateCandidateComment(candidateId, description);
@@ -90,7 +81,6 @@ function App() {
     }
   }
 
-  // Статус теперь реально сохраняется — PATCH /api/candidates/{id}.
   async function handleUpdateStatus(candidateId: string, status: ApplicationStatus) {
     try {
       const updated = await updateCandidateStatus(candidateId, status);

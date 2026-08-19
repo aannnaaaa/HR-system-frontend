@@ -31,8 +31,6 @@ interface MyApplicationsPageProps {
   isLoading?: boolean;
   onUpdateStatus: (candidateId: string, status: ApplicationStatus) => void;
   onUpdateComment: (candidateId: string, description: string) => void;
-  // Опционально: чтобы список в App.tsx сразу отразил изменения после
-  // редактирования данных кандидата (без перезагрузки страницы).
   onCandidateUpdated?: (candidate: Candidate) => void;
 }
 
@@ -45,8 +43,6 @@ const statusStyles: Record<ApplicationStatus, string> = {
   ignored: "bg-gray-100 text-gray-500 hover:bg-gray-100",
 };
 
-// Считаем карточку "требующей уточнения", если ключевые контактные/
-// профессиональные поля ещё не заполнены (сохранены плейсхолдером "—").
 function needsFollowUp(candidate: Candidate): boolean {
   return (
     isUnfilled(candidate.name) ||
@@ -89,7 +85,7 @@ export function MyApplicationsPage({
     <div className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-2xl font-bold tracking-tight">Мои заявки</h1>
       <p className="mt-1 text-muted-foreground">
-        Кандидаты, которых вы выбрали при поиске. После связи с кандидатом —
+        Кандидаты, которых вы выбрали при поиске. После связи с кандидатом -
         обновляйте статус.
       </p>
 
@@ -237,8 +233,6 @@ export function MyApplicationsPage({
       </div>
 
       {selectedApp && (
-        // onSelect не передаём — модалка открывается в режиме "только
-        // просмотр", без кнопки "Выбрать вакансию" (заявка уже есть).
         <CandidateModal
           candidate={selectedApp.candidate}
           vacancyLabel={selectedApp.vacancyLabel}

@@ -1,8 +1,5 @@
 import type { Region } from "../types";
 
-// Коды местности, которые реально встречаются в выгрузке вакансий.
-// 23 (Краснодарский край, напр. Геленджик) сюда намеренно не включён —
-// такие вакансии пока пропускаем (см. parseLocality).
 const regionCodeMap: Record<string, Region> = {
   "86": "hmao",
   "89": "ynao",
@@ -14,32 +11,22 @@ export interface ParsedLocality {
   city: string;
 }
 
-/**
- * Разбирает поле "Местность" вида "86,Сургут" -> { region: "hmao", city: "Сургут" }.
- * Если код региона не из числа поддерживаемых (86/89/72) — возвращает null,
- * и такую строку нужно пропустить (skip) на уровне вызывающего кода.
- */
 export function parseLocality(raw: string): ParsedLocality | null {
   const [codeRaw, cityRaw] = raw.split(",").map((part) => part.trim());
   const region = regionCodeMap[codeRaw];
-  if (!region) return null; // неизвестный/неподдерживаемый регион — скип
+  if (!region) return null;
 
   const city = cityRaw || "";
-  if (!city) return null; // без города строка бесполезна — скип
+  if (!city) return null; 
 
   return { region, city };
 }
 
-// ===== Группировка город->регион (для отчётов/дебага) =====
 
 interface ParsedRegions {
   [regionName: string]: string[];
 }
 
-/**
- * Группирует строки CSV-подобных данных "код,город" по региону.
- * Строки с неизвестным кодом региона пропускаются целиком.
- */
 export function parseRegions(data: string): ParsedRegions {
   const lines = data
     .trim()
@@ -52,7 +39,7 @@ export function parseRegions(data: string): ParsedRegions {
 
   for (const line of lines) {
     const parsed = parseLocality(line);
-    if (!parsed) continue; // скип неизвестного региона / пустого города
+    if (!parsed) continue; 
 
     if (!regionMap[parsed.region]) {
       regionMap[parsed.region] = new Set();

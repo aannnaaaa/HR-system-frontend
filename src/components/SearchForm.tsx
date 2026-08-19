@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { SearchFilters } from "../types";
-import { regionLabels, employmentTypeLabels } from "../types";
+import type { SearchFilters, HHExperience } from "../types";
+import { regionLabels, employmentTypeLabels, experienceLabels } from "../types";
 import { Card, CardContent, CardFooter } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -22,7 +22,7 @@ const initialFilters: SearchFilters = {
   profession: "",
   region: "",
   source: "",
-  experienceFrom: 0,
+  experience: "",
   educationLevel: "",
   educationProfile: "",
   employmentType: "",
@@ -37,11 +37,15 @@ const employmentTypeOptions = Object.entries(employmentTypeLabels).map(
   ([value, label]) => ({ value, label })
 );
 
+// Radix Select не допускает SelectItem с value="" — пустой вариант
+// ("Любой") и так показывается через SelectValue placeholder, когда
+// filters.experience === "".
+const experienceOptions = Object.entries(experienceLabels)
+  .filter(([value]) => value !== "")
+  .map(([value, label]) => ({ value, label }));
+
 export function SearchForm({ onSearch }: SearchFormProps) {
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
-  // отдельное "сырое" значение для поля стажа — чтобы можно было стереть 0
-  // и не получать его обратно при каждом ререндере, пока пользователь печатает
-  const [experienceInput, setExperienceInput] = useState("0");
 
   function handleTextChange(field: keyof SearchFilters) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,17 +53,8 @@ export function SearchForm({ onSearch }: SearchFormProps) {
     };
   }
 
-  function handleExperienceChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value;
-    setExperienceInput(raw);
-    setFilters((prev) => ({ ...prev, experienceFrom: raw === "" ? 0 : Number(raw) }));
-  }
-
-  function handleExperienceBlur() {
-    // если поле оставили пустым — возвращаем 0
-    if (experienceInput === "") {
-      setExperienceInput("0");
-    }
+  function handleExperienceChange(value: string) {
+    setFilters((prev) => ({ ...prev, experience: value as HHExperience }));
   }
 
   function handleSelectChange(field: keyof SearchFilters) {
@@ -75,7 +70,6 @@ export function SearchForm({ onSearch }: SearchFormProps) {
 
   function handleReset() {
     setFilters(initialFilters);
-    setExperienceInput("0");
   }
 
   return (
@@ -126,16 +120,19 @@ export function SearchForm({ onSearch }: SearchFormProps) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="experienceFrom">Стаж от (лет)</Label>
-            <Input
-              id="experienceFrom"
-              type="number"
-              min={0}
-              placeholder="0"
-              value={experienceInput}
-              onChange={handleExperienceChange}
-              onBlur={handleExperienceBlur}
-            />
+            <Label htmlFor="experience">Стаж</Label>
+            <Select value={filters.experience} onValueChange={handleExperienceChange}>
+              <SelectTrigger id="experience" className="w-full">
+                <SelectValue placeholder="Любой" />
+              </SelectTrigger>
+              <SelectContent>
+                {experienceOptions.map(({ value, label }) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">

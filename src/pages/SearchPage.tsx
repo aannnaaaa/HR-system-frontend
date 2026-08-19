@@ -27,11 +27,9 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
   const [searchState, setSearchState] = useState<SearchState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
-  // Живые результаты поиска hh.ru — НЕ Candidate из БД.
   const [candidates, setCandidates] = useState<HHResumeSearchResult[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  // Кандидат, которого HR нажал "Выбрать вакансию" — ждёт дозаполнения
-  // обязательных полей перед реальным сохранением в БД.
+
   const [candidateToSave, setCandidateToSave] = useState<Candidate | null>(null);
 
   async function handleSearch(filters: SearchFilters) {
@@ -72,16 +70,11 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
     setSelectedCandidate(mapSearchResultToCandidate(resume));
   }
 
-  // "Выбрать вакансию" в модалке предпросмотра -> открываем форму
-  // дозаполнения обязательных полей, а не сохраняем сразу.
   function handleWantToSelect(candidate: Candidate) {
     setSelectedCandidate(null);
     setCandidateToSave(candidate);
   }
 
-  // "Посмотреть контакт" — платное действие на стороне hh.ru. Дергается
-  // только по явному клику в модалке, обновляет открытую карточку
-  // реальными name/email/phone.
   async function handleRevealContact(candidate: Candidate) {
     try {
       const revealed = await revealResumeContact(candidate.id);

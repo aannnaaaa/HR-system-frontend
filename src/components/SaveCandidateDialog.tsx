@@ -17,8 +17,6 @@ import { withPlaceholder, type SaveCandidatePayload } from "../lib/api";
 import { Info } from "lucide-react";
 
 interface SaveCandidateDialogProps {
-  // Кандидат-предпросмотр из живого поиска hh.ru (id/region/experience/
-  // educationLevel/educationProfile уже известны, остальное — нет).
   previewCandidate: Candidate;
   onClose: () => void;
   onSubmit: (payload: SaveCandidatePayload) => Promise<void>;
@@ -26,16 +24,6 @@ interface SaveCandidateDialogProps {
 
 const employmentTypeOptions = Object.entries(employmentTypeLabels) as [EmploymentType, string][];
 
-/**
- * Форма сохранения кандидата в БД. Большинство полей теперь НЕобязательны —
- * если резюме ещё не посмотрели глазами, можно сохранить кандидата "как
- * есть" и дозаполнить позже (см. EditCandidateDialog.tsx). Бэкенд всё равно
- * требует непустые строки — пустые поля отправляются как "—" (плейсхолдер
- * "пока неизвестно", withPlaceholder из api.ts), а не блокируют сохранение.
- *
- * Исключение — тип трудоустройства: это закрытый enum на бэке, там нет
- * значения "неизвестно", поэтому он остаётся обязательным.
- */
 export function SaveCandidateDialog({
   previewCandidate,
   onClose,
@@ -62,8 +50,6 @@ export function SaveCandidateDialog({
     );
   }
 
-  // Единственное реально обязательное поле — тип трудоустройства (enum,
-  // нет значения "неизвестно"). Остальное можно оставить пустым.
   const isValid = selectedTypes.length > 0;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -101,7 +87,7 @@ export function SaveCandidateDialog({
           <DialogTitle>Сохранить кандидата</DialogTitle>
           <DialogDescription>
             Не успели посмотреть резюме? Можно сохранить как есть и
-            дозаполнить данные позже — карточка появится с пометкой
+            дозаполнить данные позже - карточка появится с пометкой
             "требует уточнения".
           </DialogDescription>
         </DialogHeader>
@@ -109,7 +95,7 @@ export function SaveCandidateDialog({
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div className="flex items-start gap-2 rounded-md bg-blue-50 p-2.5 text-xs text-blue-800">
             <Info className="mt-0.5 size-3.5 shrink-0" />
-            <span>Поля ниже необязательны — оставьте пустыми, если ещё не знаете.</span>
+            <span>Поля ниже необязательны - оставьте пустыми, если ещё не знаете.</span>
           </div>
 
           <div className="space-y-1.5">
@@ -191,7 +177,7 @@ export function SaveCandidateDialog({
             </div>
             {selectedTypes.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Единственное обязательное поле — выберите хотя бы один тип.
+                Единственное обязательное поле - выберите хотя бы один тип.
               </p>
             )}
           </div>

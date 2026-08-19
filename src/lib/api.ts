@@ -9,8 +9,6 @@ export const apiClient = axios.create({
     headers: { "Content-Type": "application/json" },
 })
 
-// Ошибка теперь несёт status как обычное поле — нужно, чтобы отличать
-// "404 = пустой список" от настоящих ошибок (см. getSavedCandidates ниже).
 export interface ApiError extends Error {
   status?: number;
 }
@@ -49,19 +47,15 @@ export async function importVacancies(vacancies: unknown[]) {
   return data;
 }
 
-/**
- * Результат живого поиска резюме через hh.ru
- * (app/api/candidates/hh/resumes/route.ts).
- * ВАЖНО: это НЕ Candidate из БД — это лёгкий предпросмотр без контактов
- * и т.д. Чтобы сохранить кандидата по-настоящему — см. saveCandidate ниже.
- */
+
 export interface HHResumeSearchResult {
   id: string; // реальный id резюме на hh.ru
   title: string | null;
   area: string | null;
   totalExperienceMonths: number | null;
   educationLevel: string | null;
-  specialities: unknown;
+
+  specialty: unknown;
 }
 
 interface HHSearchResponse {
@@ -72,22 +66,14 @@ interface HHSearchResponse {
   items: HHResumeSearchResult[];
 }
 
-/**
- * Живой поиск резюме на hh.ru — ничего не сохраняет, просто ищет.
- *
- * ВАЖНО: area здесь должен быть area id hh.ru, а не ваш код региона
- * (hmao/ynao/tobl) — точного маппинга пока нет, поэтому region из фильтров
- * сейчас НЕ передаётся в запрос.
- */
 export async function searchCandidates(filters: SearchFilters): Promise<HHResumeSearchResult[]> {
     const params = {
         text: filters.profession || undefined,
         specialty: filters.educationProfile || undefined,
-        experience: filters.experienceFrom || undefined,
-        education_levels: filters.educationLevel || undefined,
-        // filters.source (платформа) — hh-client.ts принимает "platform" как
-        // параметр, но фактически НЕ использует его при построении query.
-        // Похоже на недоделку на бэке, отправляю на всякий случай.
+        experience: filters.experience || undefined,
+        education_level: filters.educationLevel || undefined,
+        region: filters.region || undefined,
+        relocation: filters.region ? "true" : undefined,
         platform: filters.source || undefined,
     };
 
@@ -95,12 +81,6 @@ export async function searchCandidates(filters: SearchFilters): Promise<HHResume
     return data.items ?? [];
 }
 
-/**
- * hh.ru отдаёт образование как объект с primary[] (основное образование).
- * Достаём оттуда название специальности — по умолчанию для поля "Сфера
- * деятельности" в форме сохранения (item 1 из ФРОНТ-списка задач), чтобы
- * не заставлять HR каждый раз печатать одно и то же вручную.
- */
 interface HHEducationPrimaryEntry {
   name?: string;
   organization?: string;
@@ -111,26 +91,15 @@ interface HHEducationRaw {
   primary?: HHEducationPrimaryEntry[];
 }
 
-function guessSpecialtyFromEducation(specialities: unknown): string | null {
-  if (!specialities || typeof specialities !== "object") return null;
-  const edu = specialities as HHEducationRaw;
-  // ВАЖНО: name — это название учебного заведения (вуза), а не специальность.
-  // Сама специализация/квалификация лежит в result.
+function guessSpecialtyFromEducation(specialty: unknown): string | null {
+  if (!specialty || typeof specialty !== "object") return null;
+  const edu = specialty as HHEducationRaw;
   return edu.primary?.[0]?.result ?? null;
 }
 
-/**
- * Превращает результат живого поиска hh.ru в объект, совместимый с типом
- * Candidate — чтобы можно было переиспользовать CandidateModal для
- * предпросмотра (id здесь настоящий id резюме hh.ru).
- *
- * profession/specialty теперь предзаполняются: profession — из заголовка
- * резюме (resume.title), specialty — по эвристике из образования
- * (guessSpecialtyFromEducation). Если извлечь не получилось — останется
- * null, и HR всё равно впишет вручную в форме сохранения.
- */
+
 export function mapSearchResultToCandidate(resume: HHResumeSearchResult): Candidate {
-  const specialtyGuess = guessSpecialtyFromEducation(resume.specialities);
+  const specialtyGuess = guessSpecialtyFromEducation(resume.specialty);
 
   return {
     id: resume.id,
@@ -150,21 +119,7 @@ export function mapSearchResultToCandidate(resume: HHResumeSearchResult): Candid
   };
 }
 
-/**
- * Раскрытые контактные данные конкретного резюме hh.ru. Это платное
- * действие на стороне hh.ru (тратит лимит "покупки контактов" у аккаунта
- * работодателя) — поэтому вызывается только по явному клику, никогда
- * автоматически при обычном поиске.
- *
- * ВАЖНО: app/api/candidates/hh/resumes/[id]/route.ts отдаёт СЫРОЙ ответ
- * hh.ru (просто getResumeById(id) без трансформации) — не готовую форму
- * {name,email,phone}. Парсим первичное/фамилию/отчество и массив contact
- * по документации hh.ru. Также: этот роут не выполняет отдельного платного
- * "открытия" контакта — он просто читает то, что уже видно аккаунту. Если
- * контакты и после вызова остаются null — это ожидаемо, если аккаунт
- * работодателя ещё не оплатил/не получил доступ к этому резюме на hh.ru,
- * а не баг фронта.
- */
+
 export interface RevealedResumeContact {
   name: string | null;
   email: string | null;
@@ -203,19 +158,10 @@ export async function revealResumeContact(hhResumeId: string): Promise<RevealedR
   };
 }
 
-/** Публичная ссылка на резюме на сайте hh.ru — просто открыть в новой вкладке. */
 export function getHHResumeUrl(hhResumeId: string): string {
   return `https://hh.ru/resume/${hhResumeId}`;
 }
-/**
- * Бэкенд требует непустые строки для name/email/phone/profession/specialty/
- * platformLink (400, если пусто) — но по факту эти данные часто ещё
- * неизвестны на момент, когда HR хочет просто добавить кандидата на
- * страницу "Мои заявки", не успев посмотреть резюме. Раз честно оставить
- * поле пустым нельзя — используем "—" как явный плейсхолдер "пока
- * неизвестно", который потом можно заменить реальным значением через
- * updateCandidateDetails.
- */
+
 export const UNKNOWN_PLACEHOLDER = "—";
 
 export function withPlaceholder(value: string): string {
@@ -223,18 +169,11 @@ export function withPlaceholder(value: string): string {
   return trimmed || UNKNOWN_PLACEHOLDER;
 }
 
-/** true, если поле ещё не заполнено реальными данными (пусто или "—"). */
 export function isUnfilled(value?: string | null): boolean {
   return !value || value.trim() === "" || value.trim() === UNKNOWN_PLACEHOLDER;
 }
 
-/**
- * Тело запроса POST /api/candidates. Обязательные поля по бэкенду:
- * name/email/phone/platformLink/profession/specialty/region/employmentTypes.
- * Живой поиск hh.ru их не отдаёт — их вводит HR вручную в форме сохранения
- * (см. SaveCandidateDialog.tsx), кроме region/profession/specialty/
- * platformLink, которые теперь предзаполняются из результата поиска.
- */
+
 export interface SaveCandidatePayload {
   name: string;
   email: string;
@@ -250,17 +189,12 @@ export interface SaveCandidatePayload {
   employmentTypes: EmploymentType[];
 }
 
-/** POST /api/candidates — реально создаёт кандидата в БД (роут помечен Admin). */
 export async function saveCandidate(payload: SaveCandidatePayload): Promise<Candidate> {
   const { data } = await apiClient.post<Candidate>("/api/candidates", payload);
   return data;
 }
 
-/**
- * GET /api/candidates — сохранённые кандидаты из БД.
- * ВАЖНО: бэкенд отдаёт 404, если кандидатов вообще нет (не только при
- * реальной ошибке) — трактуем такой 404 как пустой список, а не ошибку.
- */
+
 export async function getSavedCandidates(): Promise<Candidate[]> {
   try {
     const { data } = await apiClient.get<Candidate[]>("/api/candidates");
@@ -276,10 +210,7 @@ export async function getSavedCandidateById(candidateId: string): Promise<Candid
   return data;
 }
 
-/**
- * PATCH /api/candidates/{candidateId} — реально сохраняет комментарий
- * (поле description в Candidate) в БД.
- */
+
 export async function updateCandidateComment(
   candidateId: string,
   description: string
@@ -290,11 +221,7 @@ export async function updateCandidateComment(
   return data;
 }
 
-/**
- * PATCH /api/candidates/{candidateId} — сохраняет статус. Раньше статус
- * хранился только на фронте (модели Application не существовало), теперь
- * status — реальное поле прямо в Candidate.
- */
+
 export async function updateCandidateStatus(
   candidateId: string,
   status: Candidate["status"]
@@ -305,11 +232,7 @@ export async function updateCandidateStatus(
   return data;
 }
 
-/**
- * PATCH /api/candidates/{candidateId} — обновляет любые поля кандидата,
- * когда данные (ФИО/контакты/профессия и т.д.), заполненные плейсхолдером
- * "—" при сохранении, наконец стали известны.
- */
+
 export async function updateCandidateDetails(
   candidateId: string,
   payload: Partial<SaveCandidatePayload>

@@ -5,8 +5,6 @@ import { Badge } from "../components/ui/badge";
 import { parseVacancyFileBuffer, type VacancyImportRow, type SkippedRow } from "../lib/parseVacancies";
 import { regionLabels, employmentTypeLabels } from "../types";
 
-// Базовый адрес бэкенда. В деве, если настроен прокси в vite.config.ts (см. инструкцию),
-// можно оставить пустую строку "" и обращаться по относительному пути "/api/...".
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 type ImportState =
@@ -40,7 +38,7 @@ export function VacancyImportPage() {
       const res = await fetch(`${API_BASE}/api/vacancies/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // важно: передаёт куки авторизации Clerk на бэкенд
+        credentials: "include", 
         body: JSON.stringify({ vacancies: state.vacancies }),
       });
 
@@ -61,7 +59,7 @@ export function VacancyImportPage() {
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-bold tracking-tight">Импорт вакансий из Excel</h1>
       <p className="mt-1 text-muted-foreground">
-        Загрузите выгрузку вакансий — регион, город, профессия и тип занятости
+        Загрузите выгрузку вакансий - регион, город, профессия и тип занятости
         подтянутся автоматически.
       </p>
 

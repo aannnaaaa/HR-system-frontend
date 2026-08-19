@@ -2,24 +2,13 @@ import * as XLSX from "xlsx";
 import type { EmploymentType, Vacancy } from "../types";
 import { parseLocality } from "./filter";
 
-// ===== Что именно берём из выгрузки (по правилам от заказчика) =====
-//
-// 1. Регион + город — строго из колонки "Местность" (см. parseLocality).
-// 2. Профессия — чисто из колонки "Должность (профессия), разряд", без
-//    дополнительного разбора остальных колонок (Филиал/Подразделение/Статус
-//    вакансии пока не используются).
-// 3. Тип трудоустройства — складывается из "Вахта" (Да/Нет) + "Вид трудового
-//    договора" (Постоянный/Временный/На период мобилизации/На период отпуска
-//    по уходу за ребенком).
-
-/** Результат парсинга одной строки, готовый к сохранению в БД. */
 export type VacancyImportRow = Pick<
   Vacancy,
   "label" | "city" | "region" | "employmentTypes"
 >;
 
 export interface SkippedRow {
-  rowNumber: number; // номер строки в исходном файле (как в колонке "№", если есть)
+  rowNumber: number; 
   reason: "unknown_region" | "missing_profession" | "unknown_contract_type";
   raw: Record<string, string>;
 }
@@ -29,7 +18,6 @@ export interface ParseResult {
   skipped: SkippedRow[];
 }
 
-// Названия колонок, как они есть в выгрузке
 const COLUMNS = {
   locality: "Местность",
   profession: "Должность (профессия), разряд",
@@ -48,12 +36,6 @@ function parseContractType(raw: string): EmploymentType | null {
   return contractTypeMap[raw.trim()] ?? null;
 }
 
-/**
- * Комбинирует "Вахта" + "Вид трудового договора" в employmentTypes.
- * Возвращает null, если вид трудового договора не распознан (строку нужно
- * пропустить — это сигнал, что в файле появился новый вид, которого нет в
- * enum'е, и его нужно сначала добавить в EmploymentType).
- */
 export function buildEmploymentTypes(
   vahtaRaw: string,
   contractRaw: string
@@ -68,7 +50,6 @@ export function buildEmploymentTypes(
   return types;
 }
 
-/** Находит индекс строки-заголовка (там, где есть нужные нам колонки). */
 function findHeaderRowIndex(rows: unknown[][]): number {
   const needed = Object.values(COLUMNS);
   for (let i = 0; i < rows.length; i++) {
@@ -76,7 +57,7 @@ function findHeaderRowIndex(rows: unknown[][]): number {
     if (needed.every((col) => row.includes(col))) return i;
   }
   throw new Error(
-    "Не удалось найти строку заголовка — проверьте, что в файле есть колонки: " +
+    "Не удалось найти строку заголовка - проверьте, что в файле есть колонки: " +
       needed.join(", ")
   );
 }
@@ -98,8 +79,7 @@ export function parseVacancyRows(rows: unknown[][]): ParseResult {
 
   for (let i = headerIndex + 1; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || row.every((cell) => cell === undefined || cell === "")) continue; // пустая строка
-
+    if (!row || row.every((cell) => cell === undefined || cell === "")) continue; 
     const localityRaw = String(row[colIndex.locality] ?? "").trim();
     const professionRaw = String(row[colIndex.profession] ?? "").trim();
     const shiftRaw = String(row[colIndex.shift] ?? "").trim();
@@ -142,7 +122,6 @@ export function parseVacancyRows(rows: unknown[][]): ParseResult {
   return { vacancies, skipped };
 }
 
-/** Парсит вакансии из уже загруженного в память workbook (браузер и Node). */
 export function parseVacancyWorkbook(workbook: XLSX.WorkBook): ParseResult {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
@@ -152,8 +131,6 @@ export function parseVacancyWorkbook(workbook: XLSX.WorkBook): ParseResult {
   return parseVacancyRows(rows);
 }
 
-/** Парсит вакансии из бинарных данных файла (например, из fetch/File.arrayBuffer() в браузере,
- *  или fs.readFileSync(path) в Node — оба варианта поддержаны). */
 export function parseVacancyFileBuffer(
   data: ArrayBuffer | Uint8Array
 ): ParseResult {

@@ -1,11 +1,5 @@
 import type { Candidate } from "../types";
 
-/**
- * Мок-данные кандидатов — только для проверки вёрстки/логики поиска,
- * пока бэкенд не реализовал реальный /api/candidates/search.
- * Состав полей строго соответствует реальному Candidate (без name/email/phone —
- * этих данных сейчас нет и с бэка).
- */
 export const mockCandidates: Candidate[] = [
   {
     id: "mock-candidate-1",
@@ -64,7 +58,6 @@ export const mockCandidates: Candidate[] = [
   },
 ];
 
-/** Простая фильтрация мока по тем же полям, что и реальный поиск, — только для теста. */
 export function filterMockCandidates(filters: {
   profession: string;
   region: string;

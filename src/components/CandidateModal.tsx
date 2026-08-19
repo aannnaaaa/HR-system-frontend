@@ -83,7 +83,7 @@ export function CandidateModal({
             {candidate.phone ?? DASH}
           </ModalField>
 
-          {/* === Новое поле — ссылка на резюме === */}
+          {}
           {candidate.platformLink && (
             <ModalField icon={<Link className="size-4" />} label="Резюме">
               <a
@@ -105,7 +105,7 @@ export function CandidateModal({
                 <span>
                   Контакты hh.ru скрыты, пока их не открыл ваш аккаунт
                   работодателя на hh.ru (обычно платно). Кнопка ниже просто
-                  проверяет, доступны ли они уже — если нет, контакты
+                  проверяет, доступны ли они уже - если нет, контакты
                   всё равно останутся скрытыми.
                 </span>
               </div>
