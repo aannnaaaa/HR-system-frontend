@@ -79,7 +79,7 @@ export function EditCandidateDialog({ candidate, onClose, onSubmit }: EditCandid
         <DialogHeader>
           <DialogTitle>Изменить данные кандидата</DialogTitle>
           <DialogDescription>
-            Дозаполните то, что узнали - остальное можно оставить пустым и
+            Дозаполните то, что узнали – остальное можно оставить пустым и
             вернуться позже.
           </DialogDescription>
         </DialogHeader>

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { SearchFilters, HHExperience } from "../types";
 import { regionLabels, employmentTypeLabels, experienceLabels } from "../types";
 import { Card, CardContent, CardFooter } from "./ui/card";
@@ -13,6 +12,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Search } from "lucide-react";
+import { usePersistentState } from "../hooks/usePersistentState";
 
 interface SearchFormProps {
   onSearch: (filters: SearchFilters) => void;
@@ -37,15 +37,15 @@ const employmentTypeOptions = Object.entries(employmentTypeLabels).map(
   ([value, label]) => ({ value, label })
 );
 
-// Radix Select не допускает SelectItem с value="" — пустой вариант
-// ("Любой") и так показывается через SelectValue placeholder, когда
-// filters.experience === "".
 const experienceOptions = Object.entries(experienceLabels)
   .filter(([value]) => value !== "")
   .map(([value, label]) => ({ value, label }));
 
 export function SearchForm({ onSearch }: SearchFormProps) {
-  const [filters, setFilters] = useState<SearchFilters>(initialFilters);
+  const [filters, setFilters] = usePersistentState<SearchFilters>(
+    "persona-gaz-search-filters",
+    initialFilters
+  );
 
   function handleTextChange(field: keyof SearchFilters) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +108,8 @@ export function SearchForm({ onSearch }: SearchFormProps) {
               </SelectContent>
             </Select>
           </div>
-
+          
+          {/* 
           <div className="space-y-1.5">
             <Label htmlFor="source">Источник (платформа)</Label>
             <Input
@@ -117,7 +118,9 @@ export function SearchForm({ onSearch }: SearchFormProps) {
               value={filters.source}
               onChange={handleTextChange("source")}
             />
-          </div>
+          </div> 
+          */}
+
 
           <div className="space-y-1.5">
             <Label htmlFor="experience">Стаж</Label>

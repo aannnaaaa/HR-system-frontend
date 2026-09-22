@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { Candidate, Region } from "../types";
-import { regionLabels } from "../types";
+import type { ApplicationStatus, Candidate, CandidateSource, Region } from "../types";
+import { applicationStatusLabels, regionLabels } from "../types";
+import { SourceBadge } from "./SourceBadge";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,11 @@ interface CandidateModalProps {
   onClose: () => void;
   onSelect?: (candidate: Candidate) => void;
   onRevealContact?: (candidate: Candidate) => Promise<void>;
+  fieldLabel?: string;
+  source?: CandidateSource | null;
+  respondedAt?: string | null;
+  selectLabel?: string;
+  savedStatus?: ApplicationStatus;
 }
 
 const DASH = "—";
@@ -31,6 +37,11 @@ export function CandidateModal({
   onClose,
   onSelect,
   onRevealContact,
+  fieldLabel = "Профессия",
+  source,
+  respondedAt,
+  selectLabel = "Выбрать вакансию",
+  savedStatus,
 }: CandidateModalProps) {
   const [isRevealing, setIsRevealing] = useState(false);
 
@@ -52,8 +63,11 @@ export function CandidateModal({
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>{candidate.name ?? candidate.educationProfile ?? "Кандидат"}</DialogTitle>
-          <DialogDescription>
-            {candidate.educationProfile ?? DASH} • {candidate.platform ?? "hh.ru"}
+          <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              {candidate.educationProfile ?? DASH} • {candidate.platform ?? "hh.ru"}
+            </span>
+            {source && <SourceBadge source={source} respondedAt={respondedAt} />}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,10 +117,10 @@ export function CandidateModal({
               <div className="flex items-start gap-2 text-xs text-amber-800">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span>
-                  Контакты hh.ru скрыты, пока их не открыл ваш аккаунт
-                  работодателя на hh.ru (обычно платно). Кнопка ниже просто
-                  проверяет, доступны ли они уже - если нет, контакты
-                  всё равно останутся скрытыми.
+                  Контакты hh.ru скрыты. «Посмотреть контакт» откроет их
++                 через ваш аккаунт работодателя - обычно платно, списывает
++                 лимит. «Открыть на hh.ru» покажет резюме на самом
++                 hh.ru бесплатно, без раскрытия контактов.
                 </span>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -138,7 +152,7 @@ export function CandidateModal({
 
         <div className="rounded-lg bg-muted/50 p-3">
           <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Профессия
+            {fieldLabel}
           </div>
           <div className="mt-0.5 text-sm">{vacancyLabel}</div>
         </div>
@@ -147,8 +161,12 @@ export function CandidateModal({
           <Button variant="secondary" onClick={onClose}>
             Закрыть
           </Button>
-          {onSelect && (
-            <Button onClick={() => onSelect(candidate)}>Выбрать вакансию</Button>
+          {savedStatus ? (
+            <span className="self-center text-sm text-muted-foreground">
+              Уже в заявках • {applicationStatusLabels[savedStatus]}
+            </span>
+          ) : (
+            onSelect && <Button onClick={() => onSelect(candidate)}>{selectLabel}</Button>
           )}
         </DialogFooter>
       </DialogContent>

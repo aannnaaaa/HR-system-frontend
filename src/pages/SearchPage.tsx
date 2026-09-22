@@ -5,18 +5,43 @@ import { SearchResumePreviewCard } from "../components/SearchResumePreviewCard";
 import { CandidateModal } from "../components/CandidateModal";
 import { SaveCandidateDialog } from "../components/SaveCandidateDialog";
 import { Card } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../components/ui/dialog";
+import { ExternalLink } from "lucide-react";
 import {
   searchVacancies,
   searchCandidates,
   saveCandidate,
   mapSearchResultToCandidate,
   revealResumeContact,
+  type ApiError,
   type HHResumeSearchResult,
   type SaveCandidatePayload,
 } from "../lib/api";
+import { usePersistentState } from "../hooks/usePersistentState";
 import type { SearchFilters, Candidate, Vacancy, Application } from "../types";
 
-type SearchState = "idle" | "loading" | "found" | "notfound" | "error";
+type SearchStatus = "idle" | "loading" | "found" | "notfound" | "error";
+
+interface SearchResultsState {
+  status: SearchStatus;
+  errorMessage: string;
+  vacancies: Vacancy[];
+  candidates: HHResumeSearchResult[];
+}
+
+const INITIAL_RESULTS: SearchResultsState = {
+  status: "idle",
+  errorMessage: "",
+  vacancies: [],
+  candidates: [],
+};
 
 interface SearchPageProps {
   applications: Application[];
@@ -24,18 +49,21 @@ interface SearchPageProps {
 }
 
 export function SearchPage({ applications, onAddApplication }: SearchPageProps) {
-  const [searchState, setSearchState] = useState<SearchState>("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
-  const [candidates, setCandidates] = useState<HHResumeSearchResult[]>([]);
+  const [results, setResults] = usePersistentState<SearchResultsState>(
+    "persona-gaz-search-results",
+    INITIAL_RESULTS
+  );
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-
   const [candidateToSave, setCandidateToSave] = useState<Candidate | null>(null);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+
+  const { status: searchState, errorMessage, vacancies, candidates } = results;
 
   async function handleSearch(filters: SearchFilters) {
     if (!filters.profession.trim()) return;
 
-    setSearchState("loading");
+    setResults((prev) => ({ ...prev, status: "loading" }));
 
     const [vacanciesResult, candidatesResult] = await Promise.allSettled([
       searchVacancies(filters),
@@ -54,16 +82,21 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
 
     if (vacanciesResult.status === "rejected" && candidatesResult.status === "rejected") {
       const err = vacanciesResult.reason;
-      setErrorMessage(err instanceof Error ? err.message : "Не получилось выполнить поиск");
-      setSearchState("error");
+      setResults({
+        status: "error",
+        errorMessage: err instanceof Error ? err.message : "Не получилось выполнить поиск",
+        vacancies: [],
+        candidates: [],
+      });
       return;
     }
 
-    setVacancies(matchedVacancies);
-    setCandidates(matchedCandidates);
-    setSearchState(
-      matchedVacancies.length === 0 && matchedCandidates.length === 0 ? "notfound" : "found"
-    );
+    setResults({
+      status: matchedVacancies.length === 0 && matchedCandidates.length === 0 ? "notfound" : "found",
+      errorMessage: "",
+      vacancies: matchedVacancies,
+      candidates: matchedCandidates,
+    });
   }
 
   function handleOpenResume(resume: HHResumeSearchResult) {
@@ -78,6 +111,7 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
   async function handleRevealContact(candidate: Candidate) {
     try {
       const revealed = await revealResumeContact(candidate.id);
+      setRevealedIds((prev) => new Set(prev).add(candidate.id));
       setSelectedCandidate((prev) =>
         prev && prev.id === candidate.id
           ? { ...prev, name: revealed.name, email: revealed.email, phone: revealed.phone }
@@ -85,7 +119,12 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
       );
     } catch (err) {
       console.error("Не удалось раскрыть контакт:", err);
-      alert(err instanceof Error ? err.message : "Не получилось раскрыть контакт");
+      const apiErr = err as ApiError;
+      if (apiErr.authUrl) {
+        setAuthUrl(apiErr.authUrl);
+      } else {
+        alert(apiErr.message ?? "Не получилось раскрыть контакт");
+      }
     }
   }
 
@@ -167,7 +206,7 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
           vacancyLabel={selectedCandidate.profession ?? selectedCandidate.educationProfile ?? "—"}
           onClose={() => setSelectedCandidate(null)}
           onSelect={handleWantToSelect}
-          onRevealContact={handleRevealContact}
+          onRevealContact={revealedIds.has(selectedCandidate.id) ? undefined : handleRevealContact}
         />
       )}
 
@@ -178,6 +217,24 @@ export function SearchPage({ applications, onAddApplication }: SearchPageProps) 
           onSubmit={handleSaveCandidate}
         />
       )}
+
+      <Dialog open={!!authUrl} onOpenChange={(next) => !next && setAuthUrl(null)}>
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>Нужна авторизация в HH</DialogTitle>
+            <DialogDescription>
+              Токен работодателя истёк или отсутствует. Авторизуйтесь заново,
+              чтобы посмотреть контакт.
+            </DialogDescription>
+          </DialogHeader>
+          <Button asChild>
+            <a href={authUrl ?? "#"} target="_blank" rel="noopener noreferrer">
+              Авторизоваться в HH
+              <ExternalLink className="size-3.5" />
+            </a>
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

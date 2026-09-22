@@ -34,9 +34,14 @@ export interface Vacancy {
   employmentTypes: EmploymentType[];
   city: string;
   region: Region;
+  /** ID вакансии на hh.ru (число из ссылки hh.ru/vacancy/<id>). У старых записей может отсутствовать. */
+  hhVacancyId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+/** Откуда кандидат попал в систему. */
+export type CandidateSource = "response" | "search";
 
 export interface Candidate {
   id: string;
@@ -55,8 +60,27 @@ export interface Candidate {
   description?: string | null; 
   status?: ApplicationStatus; 
   employmentTypes?: EmploymentType[];
+  /** "response" — сам откликнулся на вакансию, "search" — найден через поиск по базе. */
+  source?: CandidateSource | null;
+  /** Вакансия, на которую откликнулся / под которую взят кандидат. */
+  vacancyId?: string | null;
+  /** Когда кандидат откликнулся (только для source = "response"). */
+  respondedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Отклик кандидата на вакансию с hh.ru (GET /negotiations/response) */
+export interface VacancyResponse {
+  /** id отклика (negotiation) на hh.ru */
+  id: string;
+  /** id резюме на hh.ru — передаётся в getResumeById */
+  resumeId: string | null;
+  name: string | null;
+  resumeTitle: string | null;
+  area: string | null;
+  experienceMonths: number | null;
+  createdAt: string;
 }
 
 export interface Application {
@@ -113,4 +137,8 @@ export const regionLabels: Record<Region, string> = {
   hmao: "ХМАО-Югра",
   ynao: "ЯНАО",
   tobl: "Тюменская область",
+};
+export const candidateSourceLabels: Record<CandidateSource, string> = {
+  response: "Отклик",
+  search: "Поиск",
 };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Application, ApplicationStatus, Candidate, Region } from "../types";
+import type { Application, ApplicationStatus, Candidate, CandidateSource, Region } from "../types";
 import { applicationStatusLabels, regionLabels } from "../types";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { CandidateModal } from "../components/CandidateModal";
 import { EditCandidateDialog } from "../components/EditCandidateDialog";
+import { SourceBadge } from "../components/SourceBadge";
 import { isUnfilled, updateCandidateDetails, type SaveCandidatePayload } from "../lib/api";
 import {
   Select,
@@ -24,6 +25,8 @@ import {
   Eye,
   Pencil,
   AlertCircle,
+  Inbox,
+  Search,
 } from "lucide-react";
 
 interface MyApplicationsPageProps {
@@ -42,6 +45,19 @@ const statusStyles: Record<ApplicationStatus, string> = {
   rejected: "bg-red-100 text-red-700 hover:bg-red-100",
   ignored: "bg-gray-100 text-gray-500 hover:bg-gray-100",
 };
+
+type SourceFilter = "all" | CandidateSource;
+
+/** Кандидаты, сохранённые до появления откликов, пришли из поиска. */
+function sourceOf(candidate: Candidate): CandidateSource {
+  return candidate.source ?? "search";
+}
+
+const sourceFilters: { value: SourceFilter; label: string; icon?: React.ReactNode }[] = [
+  { value: "all", label: "Все" },
+  { value: "response", label: "Отклики", icon: <Inbox className="size-4" /> },
+  { value: "search", label: "Из поиска", icon: <Search className="size-4" /> },
+];
 
 function needsFollowUp(candidate: Candidate): boolean {
   return (
@@ -63,6 +79,12 @@ export function MyApplicationsPage({
   const [draftComment, setDraftComment] = useState("");
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+
+  const visibleApplications =
+    sourceFilter === "all"
+      ? applications
+      : applications.filter((app) => sourceOf(app.candidate) === sourceFilter);
 
   function handleStartEdit(app: Application) {
     setEditingId(app.id);
@@ -85,9 +107,33 @@ export function MyApplicationsPage({
     <div className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-2xl font-bold tracking-tight">Мои заявки</h1>
       <p className="mt-1 text-muted-foreground">
-        Кандидаты, которых вы выбрали при поиске. После связи с кандидатом -
-        обновляйте статус.
+        Кандидаты, которых вы выбрали при поиске или взяли из откликов. После связи
+        с кандидатом - обновляйте статус.
       </p>
+
+      {!isLoading && applications.length > 0 && (
+        <div className="mt-5 flex gap-1">
+          {sourceFilters.map((f) => {
+            const active = sourceFilter === f.value;
+            const count =
+              f.value === "all"
+                ? applications.length
+                : applications.filter((app) => sourceOf(app.candidate) === f.value).length;
+            return (
+              <Button
+                key={f.value}
+                variant={active ? "secondary" : "ghost"}
+                className={active ? "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700" : "text-muted-foreground"}
+                onClick={() => setSourceFilter(f.value)}
+              >
+                {f.icon}
+                {f.label}
+                <span className="text-xs opacity-70">{count}</span>
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {isLoading && (
         <p className="mt-6 text-sm text-muted-foreground">Загружаю сохранённых кандидатов...</p>
@@ -102,8 +148,19 @@ export function MyApplicationsPage({
         </Card>
       )}
 
-      <div className="mt-6 flex flex-col gap-3">
-        {applications.map((app) => {
+      {!isLoading && applications.length > 0 && visibleApplications.length === 0 && (
+        <Card className="mt-4 items-center gap-1 border-dashed py-10 text-center">
+          <div className="font-bold">Здесь пока пусто</div>
+          <div className="text-sm text-muted-foreground">
+            {sourceFilter === "response"
+              ? "Возьмите кандидата в работу из откликов на странице «Вакансии»"
+              : "Найдите кандидата в поиске и нажмите «Выбрать вакансию»"}
+          </div>
+        </Card>
+      )}
+
+      <div className="mt-4 flex flex-col gap-3">
+        {visibleApplications.map((app) => {
           const incomplete = needsFollowUp(app.candidate);
 
           return (
@@ -118,6 +175,7 @@ export function MyApplicationsPage({
                   <Badge className={`border-transparent font-normal ${statusStyles[app.status]}`}>
                     {applicationStatusLabels[app.status]}
                   </Badge>
+                  <SourceBadge source={sourceOf(app.candidate)} compact />
                   {incomplete && (
                     <Badge className="border-transparent bg-amber-100 font-normal text-amber-800 hover:bg-amber-100">
                       <AlertCircle className="mr-1 size-3" />
@@ -236,6 +294,9 @@ export function MyApplicationsPage({
         <CandidateModal
           candidate={selectedApp.candidate}
           vacancyLabel={selectedApp.vacancyLabel}
+          fieldLabel={selectedApp.vacancy ? "Вакансия" : "Профессия"}
+          source={sourceOf(selectedApp.candidate)}
+          respondedAt={selectedApp.candidate.respondedAt}
           onClose={() => setSelectedApp(null)}
         />
       )}

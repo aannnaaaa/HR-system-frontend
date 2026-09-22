@@ -5,7 +5,9 @@ import { parseLocality } from "./filter";
 export type VacancyImportRow = Pick<
   Vacancy,
   "label" | "city" | "region" | "employmentTypes"
->;
+> & {
+  hhVacancyId?: string;
+};
 
 export interface SkippedRow {
   rowNumber: number; 
@@ -50,6 +52,17 @@ export function buildEmploymentTypes(
   return types;
 }
 
+function findHHIdColumn(header: string[]): number {
+  return header.findIndex((cell) => /hh/i.test(cell));
+}
+
+function parseHHVacancyId(raw: string): string | undefined {
+  const fromUrl = raw.match(/vacancy\/(\d+)/);
+  if (fromUrl) return fromUrl[1];
+  const digits = raw.trim();
+  return /^\d+$/.test(digits) ? digits : undefined;
+}
+
 function findHeaderRowIndex(rows: unknown[][]): number {
   const needed = Object.values(COLUMNS);
   for (let i = 0; i < rows.length; i++) {
@@ -57,7 +70,7 @@ function findHeaderRowIndex(rows: unknown[][]): number {
     if (needed.every((col) => row.includes(col))) return i;
   }
   throw new Error(
-    "Не удалось найти строку заголовка - проверьте, что в файле есть колонки: " +
+    "Не удалось найти строку заголовка – проверьте, что в файле есть колонки: " +
       needed.join(", ")
   );
 }
@@ -72,6 +85,7 @@ export function parseVacancyRows(rows: unknown[][]): ParseResult {
     shift: header.indexOf(COLUMNS.shift),
     contractType: header.indexOf(COLUMNS.contractType),
     rowNumber: header.indexOf("№"),
+    hhVacancyId: findHHIdColumn(header),
   };
 
   const vacancies: VacancyImportRow[] = [];
@@ -111,11 +125,17 @@ export function parseVacancyRows(rows: unknown[][]): ParseResult {
       continue;
     }
 
+    const hhVacancyId =
+      colIndex.hhVacancyId >= 0
+        ? parseHHVacancyId(String(row[colIndex.hhVacancyId] ?? ""))
+        : undefined;
+
     vacancies.push({
       label: professionRaw.charAt(0).toUpperCase() + professionRaw.slice(1),
       region: locality.region,
       city: locality.city,
       employmentTypes,
+      ...(hhVacancyId && { hhVacancyId }),
     });
   }
 

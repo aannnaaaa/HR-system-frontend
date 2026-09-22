@@ -11,8 +11,7 @@ interface LoginFormProps {
 }
 
 /**
- * ВРЕМЕННО: реальной проверки логина/пароля пока нет, принимается что
- * угодно (в т.ч. пустые поля)
+ * ВРЕМЕННО: реальной проверки логина/пароля нет
  */
 export function LoginForm({ onLogin }: LoginFormProps) {
   const [email, setEmail] = useState("");

@@ -20,6 +20,7 @@ interface SaveCandidateDialogProps {
   previewCandidate: Candidate;
   onClose: () => void;
   onSubmit: (payload: SaveCandidatePayload) => Promise<void>;
+  vacancyLabel?: string;
 }
 
 const employmentTypeOptions = Object.entries(employmentTypeLabels) as [EmploymentType, string][];
@@ -28,6 +29,7 @@ export function SaveCandidateDialog({
   previewCandidate,
   onClose,
   onSubmit,
+  vacancyLabel,
 }: SaveCandidateDialogProps) {
   const [name, setName] = useState(previewCandidate.name ?? "");
   const [email, setEmail] = useState(previewCandidate.email ?? "");
@@ -37,10 +39,10 @@ export function SaveCandidateDialog({
     previewCandidate.profession ?? previewCandidate.educationProfile ?? ""
   );
   const [platformLink, setPlatformLink] = useState(
-    `https://hh.ru/resume/${previewCandidate.id}`
+    previewCandidate.platformLink ?? `https://hh.ru/resume/${previewCandidate.id}`
   );
   const [selectedTypes, setSelectedTypes] = useState<EmploymentType[]>([]);
-  const [relocationReady, setRelocationReady] = useState(false);
+  const [relocationReady, setRelocationReady] = useState(previewCandidate.relocationReady);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,15 +89,24 @@ export function SaveCandidateDialog({
           <DialogTitle>Сохранить кандидата</DialogTitle>
           <DialogDescription>
             Не успели посмотреть резюме? Можно сохранить как есть и
-            дозаполнить данные позже - карточка появится с пометкой
+            дозаполнить данные позже – карточка появится с пометкой
             "требует уточнения".
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {vacancyLabel && (
+            <div className="rounded-lg bg-muted/50 p-3">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Вакансия
+              </div>
+              <div className="mt-0.5 text-sm">{vacancyLabel}</div>
+            </div>
+          )}
+
           <div className="flex items-start gap-2 rounded-md bg-blue-50 p-2.5 text-xs text-blue-800">
             <Info className="mt-0.5 size-3.5 shrink-0" />
-            <span>Поля ниже необязательны - оставьте пустыми, если ещё не знаете.</span>
+            <span>Поля ниже необязательны – оставьте пустыми, если ещё не знаете.</span>
           </div>
 
           <div className="space-y-1.5">
@@ -177,7 +188,7 @@ export function SaveCandidateDialog({
             </div>
             {selectedTypes.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Единственное обязательное поле - выберите хотя бы один тип.
+                Единственное обязательное поле – выберите хотя бы один тип.
               </p>
             )}
           </div>
