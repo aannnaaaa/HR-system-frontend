@@ -13,15 +13,40 @@ import {
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { MapPin, Clock, GraduationCap, Mail, Phone, Eye, ExternalLink, AlertTriangle, Link } from "lucide-react";
-import { getHHResumeUrl } from "../lib/api";
+import {
+  MapPin,
+  Clock,
+  GraduationCap,
+  Mail,
+  Phone,
+  Eye,
+  ExternalLink,
+  AlertTriangle,
+  Link,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import { getHHResumeUrl, revealResumeContact, checkResumeContact } from "../lib/api";
+
+export type CandidateContacts = { email?: string | null; phone?: string | null };
+
+type ContactAction = "check" | "reveal";
+
+type ContactStatus =
+  | { kind: "idle" }
+  | { kind: "loading"; action: ContactAction }
+  | { kind: "found" }
+  | { kind: "empty"; action: ContactAction }
+  | { kind: "error"; message: string };
 
 interface CandidateModalProps {
   candidate: Candidate;
   vacancyLabel: string;
   onClose: () => void;
   onSelect?: (candidate: Candidate) => void;
-  onRevealContact?: (candidate: Candidate) => Promise<void>;
+  onCheckContact?: (candidate: Candidate) => Promise<CandidateContacts | null>;
+  onRevealContact?: (candidate: Candidate) => Promise<CandidateContacts | null>;
   fieldLabel?: string;
   source?: CandidateSource | null;
   respondedAt?: string | null;
@@ -31,30 +56,55 @@ interface CandidateModalProps {
 
 const DASH = "—";
 
+function hasAny(c?: CandidateContacts | null): c is CandidateContacts {
+  return Boolean(c?.email || c?.phone);
+}
+
 export function CandidateModal({
   candidate,
   vacancyLabel,
   onClose,
   onSelect,
-  onRevealContact,
+  onCheckContact = (c) => checkResumeContact(c.id),
+  onRevealContact = (c) => revealResumeContact(c.id),
   fieldLabel = "Профессия",
   source,
   respondedAt,
   selectLabel = "Выбрать вакансию",
   savedStatus,
 }: CandidateModalProps) {
-  const [isRevealing, setIsRevealing] = useState(false);
+  const [contacts, setContacts] = useState<CandidateContacts>({
+    email: candidate.email,
+    phone: candidate.phone,
+  });
+  const [status, setStatus] = useState<ContactStatus>({ kind: "idle" });
 
-  const hasContacts = Boolean(candidate.email || candidate.phone);
-  const canRevealContact = !hasContacts && !!onRevealContact;
+  const email = contacts.email ?? candidate.email;
+  const phone = contacts.phone ?? candidate.phone;
+  const hasContacts = Boolean(email || phone);
+  const isLoading = status.kind === "loading";
+  const loadingAction = status.kind === "loading" ? status.action : null;
+  const showContactBlock = !hasContacts && (!!onCheckContact || !!onRevealContact);
 
-  async function handleRevealContact() {
-    if (!onRevealContact) return;
-    setIsRevealing(true);
+  async function run(
+    action: ContactAction,
+    handler?: (c: Candidate) => Promise<CandidateContacts | null>,
+  ) {
+    if (!handler) return;
+    setStatus({ kind: "loading", action });
     try {
-      await onRevealContact(candidate);
-    } finally {
-      setIsRevealing(false);
+      const result = await handler(candidate);
+      if (hasAny(result)) {
+        setContacts({ email: result.email ?? null, phone: result.phone ?? null });
+        setStatus({ kind: "found" });
+      } else {
+        setStatus({ kind: "empty", action });
+      }
+    } catch (e) {
+      setStatus({
+        kind: "error",
+        message: e instanceof Error ? e.message : "Не удалось получить контакты",
+      });
     }
   }
 
@@ -90,14 +140,13 @@ export function CandidateModal({
           </ModalField>
 
           <ModalField icon={<Mail className="size-4" />} label="Email">
-            {candidate.email ?? DASH}
+            {email ?? DASH}
           </ModalField>
 
           <ModalField icon={<Phone className="size-4" />} label="Телефон">
-            {candidate.phone ?? DASH}
+            {phone ?? DASH}
           </ModalField>
 
-          {}
           {candidate.platformLink && (
             <ModalField icon={<Link className="size-4" />} label="Резюме">
               <a
@@ -112,38 +161,84 @@ export function CandidateModal({
             </ModalField>
           )}
 
-          {canRevealContact && (
+          {status.kind === "found" && (
+            <div className="flex items-center gap-2 text-xs text-green-700">
+              <CheckCircle2 className="size-3.5" />
+              Контакты получены
+            </div>
+          )}
+
+          {showContactBlock && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-start gap-2 text-xs text-amber-800">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span>
-                  Контакты hh.ru скрыты. «Посмотреть контакт» откроет их
-+                 через ваш аккаунт работодателя - обычно платно, списывает
-+                 лимит. «Открыть на hh.ru» покажет резюме на самом
-+                 hh.ru бесплатно, без раскрытия контактов.
+                  Контакты hh.ru скрыты. «Проверить контакт» бесплатно смотрит, не открыт ли
+                  контакт уже. «Посмотреть контакт» откроет его через аккаунт работодателя —
+                  обычно платно, списывает лимит. «Открыть на hh.ru» покажет резюме на самом
+                  hh.ru без раскрытия контактов.
                 </span>
               </div>
+
               <div className="mt-2 flex flex-wrap gap-2">
+                {onCheckContact && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => run("check", onCheckContact)}
+                    disabled={isLoading}
+                  >
+                    <RefreshCw
+                      className={`size-3.5 ${loadingAction === "check" ? "animate-spin" : ""}`}
+                    />
+                    {loadingAction === "check" ? "Проверяем..." : "Проверить контакт"}
+                  </Button>
+                )}
+
+                {onRevealContact && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => run("reveal", onRevealContact)}
+                    disabled={isLoading}
+                  >
+                    <Eye className="size-3.5" />
+                    {loadingAction === "reveal" ? "Открываем..." : "Посмотреть контакт"}
+                  </Button>
+                )}
+
                 <Button
                   size="sm"
                   variant="outline"
                   className="gap-1.5"
-                  onClick={handleRevealContact}
-                  disabled={isRevealing}
-                >
-                  <Eye className="size-3.5" />
-                  {isRevealing ? "Открываем..." : "Посмотреть контакт"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => window.open(getHHResumeUrl(candidate.id), "_blank", "noopener,noreferrer")}
+                  onClick={() =>
+                    window.open(getHHResumeUrl(candidate.id), "_blank", "noopener,noreferrer")
+                  }
                 >
                   <ExternalLink className="size-3.5" />
                   Открыть на hh.ru
                 </Button>
               </div>
+
+              {status.kind === "empty" && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-muted-foreground">
+                  <XCircle className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    {status.action === "check"
+                      ? "В ответе API контактов нет — резюме ещё не открывалось вашим аккаунтом."
+                      : "hh.ru не вернул контакты. Попробуйте «Проверить контакт» чуть позже или откройте резюме на hh.ru."}
+                  </span>
+                </div>
+              )}
+
+              {status.kind === "error" && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-red-700">
+                  <XCircle className="mt-0.5 size-3.5 shrink-0" />
+                  <span>{status.message}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

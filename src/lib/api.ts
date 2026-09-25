@@ -265,9 +265,14 @@ function extractHHContact(raw: HHRawResumeById, typeId: "cell" | "email"): strin
   return null;
 }
 
-export async function revealResumeContact(hhResumeId: string): Promise<RevealedResumeContact> {
-  const raw = await apiClient.get<HHRawResumeById>(`/api/candidates/hh/resumes/${hhResumeId}`);
-  const data = raw.data;
+async function fetchResumeContact(
+  hhResumeId: string,
+  withContact: boolean
+): Promise<RevealedResumeContact> {
+  const { data } = await apiClient.get<HHRawResumeById>(
+    `/api/candidates/hh/resumes/${hhResumeId}`,
+    { params: withContact ? { withContact: "true" } : undefined }
+  );
 
   const fullName = [data.last_name, data.first_name, data.middle_name]
     .filter(Boolean)
@@ -278,6 +283,16 @@ export async function revealResumeContact(hhResumeId: string): Promise<RevealedR
     email: extractHHContact(data, "email"),
     phone: extractHHContact(data, "cell"),
   };
+}
+
+/** Бесплатно: есть ли контакты в обычном ответе API (если резюме уже открывалось) */
+export async function checkResumeContact(hhResumeId: string): Promise<RevealedResumeContact> {
+  return fetchResumeContact(hhResumeId, false);
+}
+
+/** Платно: раскрывает контакты через аккаунт работодателя, списывает лимит */
+export async function revealResumeContact(hhResumeId: string): Promise<RevealedResumeContact> {
+  return fetchResumeContact(hhResumeId, true);
 }
 
 interface HHRawResumeFull extends HHRawResumeById {
